@@ -12,6 +12,16 @@
 //   - UAX #9: Bidirectional Algorithm (https://www.unicode.org/reports/tr9/)
 //   - UTS #51: Unicode Emoji (https://www.unicode.org/reports/tr51/)
 //
+// # Units
+//
+// All width measurements (MaxWidth, Width, Line.Width) are in "abstract units"
+// determined by the MeasureFunc configuration:
+//   - For terminals: character cells (1.0 per ASCII, 2.0 per CJK)
+//   - For canvas: pixels (varies by font)
+//
+// The package doesn't care about the unit semantics - it just accumulates
+// whatever your MeasureFunc returns.
+//
 // # Quick Start
 //
 //	import "github.com/SCKelemen/text"
@@ -20,19 +30,21 @@
 //	txt := text.NewTerminal()
 //
 //	// Measure width (accounts for wide characters, emoji)
-//	width := txt.Width("Hello 世界")  // 9.0 (5 + 4)
+//	width := txt.Width("Hello 世界")  // 9.0 cells
 //
 //	// Wrap text to fit width
-//	lines := txt.Wrap("Long text here...", text.WrapOptions{MaxWidth: 40})
+//	lines := txt.Wrap("Long text here...", text.WrapOptions{
+//	    MaxWidth: 40,  // 40 character cells
+//	})
 //
 //	// Truncate with ellipsis
 //	short := txt.Truncate("Very long text", text.TruncateOptions{
-//	    MaxWidth: 10,
+//	    MaxWidth: 10,  // 10 character cells
 //	    Strategy: text.TruncateEnd,
 //	})
 //
 //	// Align text
-//	aligned := txt.Align("Hello", 20, text.AlignCenter)
+//	aligned := txt.Align("Hello", 20, text.AlignCenter)  // 20 cells total
 //
 // # Configuration
 //
@@ -145,8 +157,9 @@ func NewTerminalEastAsian() *Text {
 
 // Width measures the display width of text in abstract units.
 //
-// For terminals, this returns the number of character cells.
-// For canvas, this returns the pixel width.
+// Units are determined by the MeasureFunc configuration:
+//   - For terminals: character cells (1.0 per ASCII char, 2.0 per CJK char)
+//   - For canvas: pixels (12.5 per 'a', 24.3 per 'W', etc.)
 //
 // This correctly handles:
 //   - CJK characters (2 cells/units wide)
@@ -157,9 +170,9 @@ func NewTerminalEastAsian() *Text {
 // Example:
 //
 //	txt := text.NewTerminal()
-//	width := txt.Width("Hello")     // 5.0
-//	width = txt.Width("Hello 世界")  // 9.0 (5 + 1 space + 2 + 2)
-//	width = txt.Width("👋🏻")        // 2.0 (emoji + skin tone modifier)
+//	width := txt.Width("Hello")     // 5.0 cells
+//	width = txt.Width("Hello 世界")  // 9.0 cells (5 + 1 space + 2 + 2)
+//	width = txt.Width("👋🏻")        // 2.0 cells (emoji + skin tone modifier)
 func (t *Text) Width(s string) float64 {
 	width := 0.0
 	for _, r := range s {
@@ -237,7 +250,10 @@ func TerminalMeasureEastAsian(r rune) float64 {
 
 // WrapOptions configures text wrapping behavior.
 type WrapOptions struct {
-	// MaxWidth is the maximum width for wrapped lines.
+	// MaxWidth is the maximum width for wrapped lines in abstract units.
+	// For terminals: character cells (e.g., 40 means 40 columns)
+	// For canvas: pixels (e.g., 400.0 means 400 pixels)
+	// Units are determined by the MeasureFunc configuration.
 	MaxWidth float64
 
 	// BreakWords allows breaking in the middle of words if necessary.
@@ -253,7 +269,9 @@ type Line struct {
 	// Content is the text content of the line.
 	Content string
 
-	// Width is the display width of the line.
+	// Width is the display width of the line in abstract units.
+	// For terminals: character cells
+	// For canvas: pixels
 	Width float64
 
 	// Start is the rune index in the original text where this line starts.
@@ -335,7 +353,10 @@ func (t *Text) Wrap(text string, opts WrapOptions) []Line {
 
 // TruncateOptions configures truncation behavior.
 type TruncateOptions struct {
-	// MaxWidth is the maximum width for the truncated text.
+	// MaxWidth is the maximum width for the truncated text in abstract units.
+	// For terminals: character cells (e.g., 20 means 20 columns)
+	// For canvas: pixels (e.g., 200.0 means 200 pixels)
+	// Units are determined by the MeasureFunc configuration.
 	MaxWidth float64
 
 	// Ellipsis is the string to append when truncating (default: "...").
@@ -496,11 +517,13 @@ const (
 
 // Align pads text to a specific width with the specified alignment.
 //
+// The width parameter is in abstract units (cells for terminals, pixels for canvas).
+//
 // Example:
 //
 //	txt := text.NewTerminal()
 //	aligned := txt.Align("Hello", 20, text.AlignCenter)
-//	fmt.Printf("|%s|", aligned)  // "|       Hello        |"
+//	fmt.Printf("|%s|", aligned)  // "|       Hello        |" (20 cells total)
 func (t *Text) Align(text string, width float64, align Alignment) string {
 	textWidth := t.Width(text)
 
