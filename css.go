@@ -161,6 +161,30 @@ const (
 )
 
 // ═══════════════════════════════════════════════════════════════
+//  Text Overflow (CSS UI §3.1)
+// ═══════════════════════════════════════════════════════════════
+
+// TextOverflow controls how overflowing inline content is signaled to users.
+// Based on CSS Basic User Interface Module Level 4 §3.1:
+// https://www.w3.org/TR/css-ui-4/#text-overflow
+type TextOverflow int
+
+const (
+	// TextOverflowClip clips the text at the content edge (no ellipsis).
+	TextOverflowClip TextOverflow = iota
+
+	// TextOverflowEllipsis displays an ellipsis ('...') to represent clipped text.
+	TextOverflowEllipsis
+
+	// TextOverflowString displays a custom string to represent clipped text.
+	// The string value is specified separately.
+	TextOverflowString
+
+	// TextOverflowFade fades out the end of the text (not widely supported).
+	TextOverflowFade
+)
+
+// ═══════════════════════════════════════════════════════════════
 //  CSS Text Style Configuration
 // ═══════════════════════════════════════════════════════════════
 
@@ -178,6 +202,13 @@ type CSSTextStyle struct {
 	OverflowWrap OverflowWrap
 	Hyphens      Hyphens
 
+	// Text overflow (CSS Overflow Module)
+	// https://drafts.csswg.org/css-overflow/#text-overflow
+	TextOverflow      TextOverflow // How to handle overflow (applies to both ends if TextOverflowEnd not set)
+	TextOverflowEnd   TextOverflow // How to handle overflow at end (if different from start)
+	TextOverflowClipString string  // Custom string for clip mode
+	TextOverflowEllipsisString string // Custom ellipsis string (default: "...")
+
 	// Spacing (using CSS length units)
 	LetterSpacing units.Length // Additional spacing between characters
 	WordSpacing   units.Length // Additional spacing between words
@@ -193,19 +224,21 @@ type CSSTextStyle struct {
 // DefaultCSSTextStyle returns a CSSTextStyle with default values matching CSS defaults.
 func DefaultCSSTextStyle() CSSTextStyle {
 	return CSSTextStyle{
-		WhiteSpace:    WhiteSpaceNormal,
-		TextTransform: TextTransformNone,
-		WordBreak:     WordBreakNormal,
-		LineBreak:     LineBreakAuto,
-		OverflowWrap:  OverflowWrapNormal,
-		Hyphens:       HyphensManual,
-		LetterSpacing: units.Px(0),
-		WordSpacing:   units.Px(0),
-		TextIndent:    units.Px(0),
-		TextAlign:     AlignLeft,
-		TextAlignLast: AlignLeft,
-		VerticalAlign: AlignLeft,
-		HangingPunct:  false,
+		WhiteSpace:             WhiteSpaceNormal,
+		TextTransform:          TextTransformNone,
+		WordBreak:              WordBreakNormal,
+		LineBreak:              LineBreakAuto,
+		OverflowWrap:           OverflowWrapNormal,
+		Hyphens:                HyphensManual,
+		TextOverflow:           TextOverflowClip,
+		TextOverflowEllipsisString: "...",
+		LetterSpacing:          units.Px(0),
+		WordSpacing:            units.Px(0),
+		TextIndent:             units.Px(0),
+		TextAlign:              AlignLeft,
+		TextAlignLast:          AlignLeft,
+		VerticalAlign:          AlignLeft,
+		HangingPunct:           false,
 	}
 }
 
@@ -499,4 +532,100 @@ func (t *Text) buildLinesFromBreakPoints(text string, breakPoints []int, opts CS
 	}
 
 	return lines
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Overflow Implementation (CSS Overflow Module)
+// ═══════════════════════════════════════════════════════════════
+
+// ApplyTextOverflow applies CSS text-overflow property to text that exceeds maxWidth.
+//
+// Based on CSS Overflow Module Level 3 §3:
+// https://drafts.csswg.org/css-overflow/#text-overflow
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	result := txt.ApplyTextOverflow("Very long text here", 15, text.CSSTextStyle{
+//	    TextOverflow: text.TextOverflowEllipsis,
+//	    TextOverflowEllipsisString: "…",
+//	})
+//	// Returns: "Very long t…"
+func (t *Text) ApplyTextOverflow(text string, maxWidth float64, style CSSTextStyle) string {
+	currentWidth := t.Width(text)
+
+	// No overflow, return as-is
+	if currentWidth <= maxWidth {
+		return text
+	}
+
+	// Determine overflow mode (use TextOverflow for both ends if TextOverflowEnd not set)
+	overflowMode := style.TextOverflow
+	if style.TextOverflowEnd != TextOverflowClip {
+		// If end mode is set differently, use it for end truncation
+		overflowMode = style.TextOverflowEnd
+	}
+
+	switch overflowMode {
+	case TextOverflowClip:
+		// Just clip at maxWidth (no indicator)
+		return t.clipAtWidth(text, maxWidth)
+
+	case TextOverflowEllipsis:
+		// Add ellipsis
+		ellipsis := style.TextOverflowEllipsisString
+		if ellipsis == "" {
+			ellipsis = "..."
+		}
+		return t.Truncate(text, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateEnd,
+			Ellipsis: ellipsis,
+		})
+
+	case TextOverflowString:
+		// Use custom overflow string
+		clipString := style.TextOverflowClipString
+		if clipString == "" {
+			clipString = "..."
+		}
+		return t.Truncate(text, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateEnd,
+			Ellipsis: clipString,
+		})
+
+	case TextOverflowFade:
+		// Fade is not widely supported, fallback to ellipsis
+		ellipsis := style.TextOverflowEllipsisString
+		if ellipsis == "" {
+			ellipsis = "..."
+		}
+		return t.Truncate(text, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateEnd,
+			Ellipsis: ellipsis,
+		})
+
+	default:
+		return t.clipAtWidth(text, maxWidth)
+	}
+}
+
+// clipAtWidth clips text at the exact width without any indicator.
+func (t *Text) clipAtWidth(text string, maxWidth float64) string {
+	graphemes := t.Graphemes(text)
+	result := ""
+	width := 0.0
+
+	for _, g := range graphemes {
+		gWidth := t.Width(g)
+		if width+gWidth > maxWidth {
+			break
+		}
+		result += g
+		width += gWidth
+	}
+
+	return result
 }
