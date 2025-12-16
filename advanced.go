@@ -538,3 +538,201 @@ func (t *Text) WrapWithControls(text string, maxWidth float64, controls []WrapPo
 
 	return lines
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Autospace (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// TextAutospace controls automatic spacing around ideographic characters.
+// Based on CSS Text Module Level 4:
+// https://www.w3.org/TR/css-text-4/#text-autospace-property
+type TextAutospace int
+
+const (
+	// TextAutospaceNormal creates extra spacing as specified.
+	TextAutospaceNormal TextAutospace = iota
+
+	// TextAutospaceNoAutospace disables automatic spacing.
+	TextAutospaceNoAutospace
+
+	// TextAutospaceAuto uses language-specific spacing rules.
+	TextAutospaceAuto
+)
+
+// AutospaceFlags specifies which autospace features to apply.
+type AutospaceFlags int
+
+const (
+	// AutospaceNone disables all autospace features.
+	AutospaceNone AutospaceFlags = 0
+
+	// AutospaceIdeographAlpha adds spacing between ideographic and non-ideographic characters.
+	AutospaceIdeographAlpha AutospaceFlags = 1 << 0
+
+	// AutospaceIdeographNumeric adds spacing between ideographic and numeric characters.
+	AutospaceIdeographNumeric AutospaceFlags = 1 << 1
+
+	// AutospacePunctuation adjusts spacing around fullwidth punctuation.
+	AutospacePunctuation AutospaceFlags = 1 << 2
+
+	// AutospaceAll enables all autospace features.
+	AutospaceAll = AutospaceIdeographAlpha | AutospaceIdeographNumeric | AutospacePunctuation
+)
+
+// IsIdeographic returns true if the rune is an ideographic character.
+// Includes CJK ideographs, Hiragana, Katakana, and Hangul.
+func IsIdeographic(r rune) bool {
+	// CJK Ideographs (already in IsCJKIdeograph)
+	if IsCJKIdeograph(r) {
+		return true
+	}
+
+	// Hiragana
+	if r >= 0x3040 && r <= 0x309F {
+		return true
+	}
+
+	// Katakana
+	if r >= 0x30A0 && r <= 0x30FF {
+		return true
+	}
+
+	// Hangul Syllables
+	if r >= 0xAC00 && r <= 0xD7AF {
+		return true
+	}
+
+	// Hangul Jamo
+	if r >= 0x1100 && r <= 0x11FF {
+		return true
+	}
+
+	return false
+}
+
+// IsFullwidthPunctuation returns true if the rune is fullwidth punctuation.
+func IsFullwidthPunctuation(r rune) bool {
+	fullwidthPunct := map[rune]bool{
+		'、': true, '。': true, '，': true, '．': true,
+		'：': true, '；': true, '！': true, '？': true,
+		'「': true, '」': true, '『': true, '』': true,
+		'（': true, '）': true, '【': true, '】': true,
+		'《': true, '》': true, '〈': true, '〉': true,
+		'〔': true, '〕': true, '｛': true, '｝': true,
+	}
+	return fullwidthPunct[r]
+}
+
+// IsOpeningFullwidthPunctuation returns true if the rune is opening fullwidth punctuation.
+func IsOpeningFullwidthPunctuation(r rune) bool {
+	opening := map[rune]bool{
+		'「': true, '『': true, '（': true, '【': true,
+		'《': true, '〈': true, '〔': true, '｛': true,
+	}
+	return opening[r]
+}
+
+// IsClosingFullwidthPunctuation returns true if the rune is closing fullwidth punctuation.
+func IsClosingFullwidthPunctuation(r rune) bool {
+	closing := map[rune]bool{
+		'」': true, '』': true, '）': true, '】': true,
+		'》': true, '〉': true, '〕': true, '｝': true,
+	}
+	return closing[r]
+}
+
+// ApplyAutospace applies automatic spacing according to text-autospace rules.
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	result := txt.ApplyAutospace("Hello世界123", text.AutospaceAll)
+//	// Returns "Hello 世界 123" (with spacing between scripts)
+func (t *Text) ApplyAutospace(text string, flags AutospaceFlags) string {
+	if flags == AutospaceNone {
+		return text
+	}
+
+	runes := []rune(text)
+	if len(runes) == 0 {
+		return text
+	}
+
+	var result []rune
+	result = append(result, runes[0])
+
+	for i := 1; i < len(runes); i++ {
+		prev := runes[i-1]
+		curr := runes[i]
+
+		// Check if we need to insert space
+		needSpace := false
+
+		// Ideograph-Alpha spacing
+		if (flags & AutospaceIdeographAlpha) != 0 {
+			prevIdeo := IsIdeographic(prev)
+			currIdeo := IsIdeographic(curr)
+			prevAlpha := (prev >= 'A' && prev <= 'Z') || (prev >= 'a' && prev <= 'z')
+			currAlpha := (curr >= 'A' && curr <= 'Z') || (curr >= 'a' && curr <= 'z')
+
+			// Add space between ideographic and alphabetic
+			if (prevIdeo && currAlpha) || (prevAlpha && currIdeo) {
+				needSpace = true
+			}
+		}
+
+		// Ideograph-Numeric spacing
+		if (flags & AutospaceIdeographNumeric) != 0 {
+			prevIdeo := IsIdeographic(prev)
+			currIdeo := IsIdeographic(curr)
+			prevNum := (prev >= '0' && prev <= '9')
+			currNum := (curr >= '0' && curr <= '9')
+
+			// Add space between ideographic and numeric
+			if (prevIdeo && currNum) || (prevNum && currIdeo) {
+				// Don't add space if already has space or punctuation
+				if prev != ' ' && !IsFullwidthPunctuation(prev) {
+					needSpace = true
+				}
+			}
+		}
+
+		// Punctuation spacing
+		if (flags & AutospacePunctuation) != 0 {
+			// Reduce space after opening punctuation
+			if IsOpeningFullwidthPunctuation(prev) && curr == ' ' {
+				// Skip the space (don't add it)
+				continue
+			}
+
+			// Reduce space before closing punctuation
+			if prev == ' ' && IsClosingFullwidthPunctuation(curr) {
+				// Remove the previous space we added
+				if len(result) > 0 && result[len(result)-1] == ' ' {
+					result = result[:len(result)-1]
+				}
+			}
+		}
+
+		// Insert spacing if needed
+		if needSpace && prev != ' ' {
+			result = append(result, ' ')
+		}
+
+		result = append(result, curr)
+	}
+
+	return string(result)
+}
+
+// ApplyAutospaceMode applies text-autospace with predefined mode.
+func (t *Text) ApplyAutospaceMode(text string, mode TextAutospace) string {
+	switch mode {
+	case TextAutospaceNoAutospace:
+		return text
+	case TextAutospaceAuto, TextAutospaceNormal:
+		return t.ApplyAutospace(text, AutospaceAll)
+	default:
+		return text
+	}
+}

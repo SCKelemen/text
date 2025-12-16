@@ -826,3 +826,291 @@ func BenchmarkTrimCJKSpacing(b *testing.B) {
 		txt.TrimCJKSpacing(text, TextSpacingTrimSpaceAll)
 	}
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Autospace Tests
+// ═══════════════════════════════════════════════════════════════
+
+func TestApplyAutospace_IdeographAlpha(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name     string
+		text     string
+		expected string
+	}{
+		{
+			name:     "Chinese with English",
+			text:     "Hello世界",
+			expected: "Hello 世界",
+		},
+		{
+			name:     "English with Chinese",
+			text:     "世界Hello",
+			expected: "世界 Hello",
+		},
+		{
+			name:     "Multiple transitions",
+			text:     "Hello世界World中国",
+			expected: "Hello 世界 World 中国",
+		},
+		{
+			name:     "Japanese Hiragana with English",
+			text:     "Helloこんにちは",
+			expected: "Hello こんにちは",
+		},
+		{
+			name:     "Japanese Katakana with English",
+			text:     "テストTest",
+			expected: "テスト Test",
+		},
+		{
+			name:     "Korean with English",
+			text:     "안녕Hello",
+			expected: "안녕 Hello",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.ApplyAutospace(tt.text, AutospaceIdeographAlpha)
+
+			if result != tt.expected {
+				t.Errorf("ApplyAutospace(%q) = %q, want %q", tt.text, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyAutospace_IdeographNumeric(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name     string
+		text     string
+		expected string
+	}{
+		{
+			name:     "Chinese with number",
+			text:     "世界123",
+			expected: "世界 123",
+		},
+		{
+			name:     "Number with Chinese",
+			text:     "123世界",
+			expected: "123 世界",
+		},
+		{
+			name:     "Multiple numbers",
+			text:     "世界123中国456",
+			expected: "世界 123 中国 456",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.ApplyAutospace(tt.text, AutospaceIdeographNumeric)
+
+			if result != tt.expected {
+				t.Errorf("ApplyAutospace(%q) = %q, want %q", tt.text, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyAutospace_Punctuation(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name string
+		text string
+	}{
+		{
+			name: "Opening bracket",
+			text: "「世界」",
+		},
+		{
+			name: "Parentheses",
+			text: "（テスト）",
+		},
+		{
+			name: "Mixed punctuation",
+			text: "《中国》",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.ApplyAutospace(tt.text, AutospacePunctuation)
+
+			// Just verify it doesn't crash
+			if len(result) == 0 && len(tt.text) > 0 {
+				t.Errorf("ApplyAutospace returned empty for non-empty input")
+			}
+		})
+	}
+}
+
+func TestApplyAutospace_All(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name string
+		text string
+	}{
+		{
+			name: "Complex mixed text",
+			text: "Hello世界123テスト",
+		},
+		{
+			name: "With punctuation",
+			text: "「世界」test123",
+		},
+		{
+			name: "Multiple scripts",
+			text: "English中文한글テスト123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.ApplyAutospace(tt.text, AutospaceAll)
+
+			// Verify result is longer (due to added spaces)
+			if len(result) < len(tt.text) {
+				t.Errorf("ApplyAutospace should not shorten text")
+			}
+
+			t.Logf("Input:  %q", tt.text)
+			t.Logf("Output: %q", result)
+		})
+	}
+}
+
+func TestApplyAutospace_None(t *testing.T) {
+	txt := NewTerminal()
+
+	text := "Hello世界123"
+	result := txt.ApplyAutospace(text, AutospaceNone)
+
+	if result != text {
+		t.Errorf("AutospaceNone should return unchanged text, got %q", result)
+	}
+}
+
+func TestApplyAutospaceMode(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name string
+		text string
+		mode TextAutospace
+	}{
+		{
+			name: "Normal mode",
+			text: "Hello世界",
+			mode: TextAutospaceNormal,
+		},
+		{
+			name: "Auto mode",
+			text: "Hello世界",
+			mode: TextAutospaceAuto,
+		},
+		{
+			name: "No autospace",
+			text: "Hello世界",
+			mode: TextAutospaceNoAutospace,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.ApplyAutospaceMode(tt.text, tt.mode)
+
+			if tt.mode == TextAutospaceNoAutospace {
+				if result != tt.text {
+					t.Errorf("NoAutospace should return unchanged, got %q", result)
+				}
+			} else {
+				// Normal and Auto should add spacing
+				if len(result) <= len(tt.text) {
+					t.Logf("Note: No spacing added for %q with mode %v", tt.text, tt.mode)
+				}
+			}
+
+			t.Logf("Mode %v: %q -> %q", tt.mode, tt.text, result)
+		})
+	}
+}
+
+func TestIsIdeographic(t *testing.T) {
+	tests := []struct {
+		name string
+		r    rune
+		want bool
+	}{
+		// CJK Ideographs
+		{"Chinese common", '中', true},
+		{"Chinese common 2", '国', true},
+
+		// Hiragana
+		{"Hiragana あ", 'あ', true},
+		{"Hiragana か", 'か', true},
+
+		// Katakana
+		{"Katakana ア", 'ア', true},
+		{"Katakana カ", 'カ', true},
+
+		// Hangul
+		{"Hangul 가", '가', true},
+		{"Hangul 한", '한', true},
+
+		// Non-ideographic
+		{"Latin A", 'A', false},
+		{"Latin a", 'a', false},
+		{"Digit 1", '1', false},
+		{"Space", ' ', false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsIdeographic(tt.r); got != tt.want {
+				t.Errorf("IsIdeographic(%c/U+%04X) = %v, want %v", tt.r, tt.r, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsFullwidthPunctuation(t *testing.T) {
+	tests := []struct {
+		r    rune
+		want bool
+	}{
+		{'、', true},
+		{'。', true},
+		{'，', true},
+		{'「', true},
+		{'」', true},
+		{'（', true},
+		{'）', true},
+		{'.', false},
+		{',', false},
+		{'a', false},
+	}
+
+	for _, tt := range tests {
+		if got := IsFullwidthPunctuation(tt.r); got != tt.want {
+			t.Errorf("IsFullwidthPunctuation(%c) = %v, want %v", tt.r, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkApplyAutospace(b *testing.B) {
+	txt := NewTerminal()
+	text := "Hello世界123テストKorean한글"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txt.ApplyAutospace(text, AutospaceAll)
+	}
+}

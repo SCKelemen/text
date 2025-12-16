@@ -518,6 +518,12 @@ func (t *Text) buildLinesFromBreakPoints(text string, breakPoints []int, opts CS
 			segmentWidth += float64(len(graphemes)-1) * opts.Style.LetterSpacing.Raw()
 		}
 
+		// Apply word spacing
+		if !opts.Style.WordSpacing.IsZero() {
+			spaceCount := strings.Count(segment, " ")
+			segmentWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
+		}
+
 		// Check if this segment fits
 		if segmentWidth <= maxWidth || len(lines) == 0 {
 			// Create a line
@@ -625,6 +631,60 @@ func (t *Text) clipAtWidth(text string, maxWidth float64) string {
 		}
 		result += g
 		width += gWidth
+	}
+
+	return result
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Alignment with CSS Support
+// ═══════════════════════════════════════════════════════════════
+
+// AlignLines aligns multiple lines according to CSS text-align and text-align-last properties.
+//
+// Based on CSS Text Module Level 3:
+// - text-align: https://www.w3.org/TR/css-text-3/#text-align-property
+// - text-align-last: https://www.w3.org/TR/css-text-3/#text-align-last-property
+//
+// Example:
+//
+//	lines := []Line{
+//	    {Content: "First line", Width: 10},
+//	    {Content: "Second line", Width: 11},
+//	    {Content: "Last", Width: 4},
+//	}
+//	aligned := txt.AlignLines(lines, 20.0, text.CSSTextStyle{
+//	    TextAlign:     text.AlignJustify,
+//	    TextAlignLast: text.AlignLeft,
+//	})
+func (t *Text) AlignLines(lines []Line, width float64, style CSSTextStyle) []Line {
+	if len(lines) == 0 {
+		return lines
+	}
+
+	result := make([]Line, len(lines))
+	copy(result, lines)
+
+	for i := range result {
+		isLastLine := (i == len(result)-1)
+
+		// Determine which alignment to use
+		align := style.TextAlign
+		if isLastLine && style.TextAlignLast != AlignLeft {
+			// Use text-align-last for the last line
+			// If text-align-last is not set (AlignLeft is default), use text-align
+			align = style.TextAlignLast
+
+			// Special handling: if text-align is justify but last line uses default,
+			// the last line should use start alignment (left in LTR)
+			if style.TextAlign == AlignJustify && style.TextAlignLast == AlignLeft {
+				align = AlignLeft
+			}
+		}
+
+		// Apply alignment
+		result[i].Content = t.Align(result[i].Content, width, align)
+		result[i].Width = width
 	}
 
 	return result

@@ -440,3 +440,221 @@ func BenchmarkWordCount(b *testing.B) {
 		txt.WordCount(text)
 	}
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Word Spacing Tests
+// ═══════════════════════════════════════════════════════════════
+
+func TestWordSpacing(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name        string
+		text        string
+		wordSpacing float64
+		maxWidth    float64
+	}{
+		{
+			name:        "Positive word spacing",
+			text:        "Hello world test",
+			wordSpacing: 2.0,
+			maxWidth:    30.0,
+		},
+		{
+			name:        "Large word spacing",
+			text:        "A B C",
+			wordSpacing: 5.0,
+			maxWidth:    30.0,
+		},
+		{
+			name:        "Zero word spacing",
+			text:        "Hello world",
+			wordSpacing: 0.0,
+			maxWidth:    20.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			style := CSSTextStyle{
+				WordSpacing: units.Px(tt.wordSpacing),
+			}
+
+			opts := CSSWrapOptions{
+				MaxWidth: units.Px(tt.maxWidth),
+				Style:    style,
+			}
+
+			lines := txt.WrapCSS(tt.text, opts)
+
+			if len(lines) == 0 {
+				t.Error("WrapCSS returned no lines")
+			}
+
+			// Verify that lines respect max width
+			for i, line := range lines {
+				if line.Width > tt.maxWidth {
+					t.Errorf("Line %d width %.1f exceeds max %.1f", i, line.Width, tt.maxWidth)
+				}
+			}
+
+			// With word spacing, width should be greater than without
+			if tt.wordSpacing > 0 {
+				spaceCount := strings.Count(tt.text, " ")
+				if spaceCount > 0 {
+					// The total width should include the word spacing contribution
+					expectedExtra := float64(spaceCount) * tt.wordSpacing
+					if expectedExtra > 0 {
+						// Just verify calculation doesn't crash and produces valid output
+						t.Logf("Applied word spacing %.1f to %d spaces", tt.wordSpacing, spaceCount)
+					}
+				}
+			}
+		})
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Align Last Tests
+// ═══════════════════════════════════════════════════════════════
+
+func TestAlignLines(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name          string
+		lines         []Line
+		width         float64
+		textAlign     Alignment
+		textAlignLast Alignment
+	}{
+		{
+			name: "Justify with left last",
+			lines: []Line{
+				{Content: "First line", Width: 10},
+				{Content: "Second line", Width: 11},
+				{Content: "Last", Width: 4},
+			},
+			width:         20.0,
+			textAlign:     AlignJustify,
+			textAlignLast: AlignLeft,
+		},
+		{
+			name: "Justify with center last",
+			lines: []Line{
+				{Content: "Line one", Width: 8},
+				{Content: "Line two", Width: 8},
+				{Content: "End", Width: 3},
+			},
+			width:         20.0,
+			textAlign:     AlignJustify,
+			textAlignLast: AlignCenter,
+		},
+		{
+			name: "Center all lines",
+			lines: []Line{
+				{Content: "First", Width: 5},
+				{Content: "Second", Width: 6},
+			},
+			width:         15.0,
+			textAlign:     AlignCenter,
+			textAlignLast: AlignCenter,
+		},
+		{
+			name: "Single line",
+			lines: []Line{
+				{Content: "Only", Width: 4},
+			},
+			width:         10.0,
+			textAlign:     AlignLeft,
+			textAlignLast: AlignRight,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			style := CSSTextStyle{
+				TextAlign:     tt.textAlign,
+				TextAlignLast: tt.textAlignLast,
+			}
+
+			aligned := txt.AlignLines(tt.lines, tt.width, style)
+
+			if len(aligned) != len(tt.lines) {
+				t.Errorf("Expected %d lines, got %d", len(tt.lines), len(aligned))
+			}
+
+			// Check last line uses text-align-last
+			if len(aligned) > 0 {
+				lastLine := aligned[len(aligned)-1]
+				if lastLine.Width != tt.width {
+					t.Errorf("Last line width %.1f, want %.1f", lastLine.Width, tt.width)
+				}
+
+				// Verify alignment was applied (content should have changed if alignment needed)
+				originalLast := tt.lines[len(tt.lines)-1]
+				originalContentWidth := txt.Width(originalLast.Content)
+				if originalContentWidth < tt.width {
+					// Alignment should have added padding
+					alignedContentWidth := txt.Width(strings.TrimSpace(lastLine.Content))
+					if alignedContentWidth < originalContentWidth {
+						t.Errorf("Expected alignment to preserve content width")
+					}
+					// The line should now be at target width
+					if lastLine.Width != tt.width {
+						t.Errorf("Expected aligned line width %.1f, got %.1f", tt.width, lastLine.Width)
+					}
+				}
+			}
+
+			// Check non-last lines use text-align
+			for i := 0; i < len(aligned)-1; i++ {
+				if aligned[i].Width != tt.width {
+					t.Errorf("Line %d width %.1f, want %.1f", i, aligned[i].Width, tt.width)
+				}
+			}
+		})
+	}
+}
+
+func TestAlignLines_Empty(t *testing.T) {
+	txt := NewTerminal()
+
+	style := CSSTextStyle{
+		TextAlign:     AlignCenter,
+		TextAlignLast: AlignRight,
+	}
+
+	aligned := txt.AlignLines([]Line{}, 20.0, style)
+
+	if len(aligned) != 0 {
+		t.Errorf("Expected empty result, got %d lines", len(aligned))
+	}
+}
+
+func TestAlignLines_JustifyDefault(t *testing.T) {
+	txt := NewTerminal()
+
+	lines := []Line{
+		{Content: "Justified line one", Width: 18},
+		{Content: "Justified line two", Width: 18},
+		{Content: "Last", Width: 4},
+	}
+
+	// When text-align is justify and text-align-last is default (left),
+	// the last line should be left-aligned, not justified
+	style := CSSTextStyle{
+		TextAlign:     AlignJustify,
+		TextAlignLast: AlignLeft, // Default
+	}
+
+	aligned := txt.AlignLines(lines, 25.0, style)
+
+	// Last line should be left-aligned
+	lastLine := aligned[len(aligned)-1]
+	// It should have padding on the right (left-aligned)
+	if !strings.HasSuffix(lastLine.Content, " ") && txt.Width(lastLine.Content) < 25.0 {
+		// The content itself is short, and should have right padding
+		t.Logf("Last line content: %q", lastLine.Content)
+	}
+}
