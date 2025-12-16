@@ -2,6 +2,7 @@ package text
 
 import (
 	"math"
+	"strings"
 
 	"github.com/SCKelemen/units"
 )
@@ -53,17 +54,28 @@ func (t *Text) IntrinsicSizing(text string) IntrinsicSize {
 	// MaxContent: full line width
 	maxContent := t.Width(text)
 
-	// MinContent: width of widest word
-	words := t.Words(text)
+	// MinContent: width of widest unbreakable segment
+	// For proper intrinsic sizing, we should look at the longest segment
+	// between forced breaks (spaces for most text, or line break opportunities for CJK).
+	// Using space-separated segments gives us the "longest word" in Latin text
+	// and works reasonably for CJK with spaces.
+	segments := strings.Fields(text)
 	minContent := 0.0
-	for _, word := range words {
-		w := t.Width(word)
-		if w > minContent {
-			minContent = w
+
+	if len(segments) > 0 {
+		// Use space-separated segments for min-content
+		for _, segment := range segments {
+			w := t.Width(segment)
+			if w > minContent {
+				minContent = w
+			}
 		}
+	} else {
+		// No spaces - the whole text is one segment
+		minContent = maxContent
 	}
 
-	// If no words found, use widest grapheme
+	// Fallback: if still zero, use widest grapheme
 	if minContent == 0 {
 		graphemes := t.Graphemes(text)
 		for _, g := range graphemes {
@@ -143,9 +155,14 @@ func (t *Text) MeasureLineBox(text string, style TextStyle) LineBoxMetrics {
 	if lineHeight > contentHeight {
 		leading = lineHeight - contentHeight
 		// Leading is distributed half-above, half-below
+	} else {
+		// Ensure ascent + descent + leading always equals lineHeight
+		// by adjusting the descent slightly if needed
+		leading = 0.0
+		descent = lineHeight - ascent
 	}
 
-	totalLineHeight := ascent + descent + leading
+	// Baseline is ascent plus half the leading
 	baseline := ascent + (leading / 2)
 
 	return LineBoxMetrics{
@@ -154,7 +171,7 @@ func (t *Text) MeasureLineBox(text string, style TextStyle) LineBoxMetrics {
 		Ascent:     ascent,
 		Descent:    descent,
 		Leading:    leading,
-		LineHeight: totalLineHeight,
+		LineHeight: lineHeight, // Use the requested line height, not calculated
 		Baseline:   baseline,
 		Start:      0,
 		End:        len([]rune(text)),
