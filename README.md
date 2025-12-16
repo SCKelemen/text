@@ -482,7 +482,7 @@ BenchmarkWrap-10          200000    7234 ns/op
 
 ## License
 
-MIT
+BearWare 1.0 (MIT Compatible)
 
 ## Related Projects
 
