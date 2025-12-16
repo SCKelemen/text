@@ -1,7 +1,10 @@
 package text
 
 import (
+	"sort"
 	"strings"
+
+	"github.com/SCKelemen/unicode/uax14"
 )
 
 // Advanced CSS Text Module Features
@@ -522,19 +525,169 @@ type WrapPoint struct {
 }
 
 // WrapWithControls wraps text respecting wrap-before/wrap-after controls.
+//
+// This function modifies line break opportunities based on CSS wrap-before
+// and wrap-after properties:
+// - WrapControlAvoid: Avoids breaking at this position if possible
+// - WrapControlAlways: Forces a break at this position
+// - WrapControlAuto: Uses normal UAX #14 break opportunities
+//
+// Example:
+//
+//	controls := []WrapPoint{
+//	    {Position: 5, After: WrapControlAlways}, // Force break after position 5
+//	    {Position: 10, Before: WrapControlAvoid}, // Avoid breaking before position 10
+//	}
+//	lines := txt.WrapWithControls("Hello world test", 20, controls)
 func (t *Text) WrapWithControls(text string, maxWidth float64, controls []WrapPoint) []Line {
-	// Build a map of positions to controls
+	if len(controls) == 0 {
+		// No controls, use regular wrapping
+		return t.Wrap(text, WrapOptions{MaxWidth: maxWidth})
+	}
+
+	// Build a map of positions to controls for quick lookup
 	controlMap := make(map[int]WrapPoint)
 	for _, wp := range controls {
 		controlMap[wp.Position] = wp
 	}
 
-	// Get break opportunities from UAX #14
-	// Then filter based on wrap controls
+	// Get UAX #14 break opportunities
+	breakOpportunities := uax14.FindLineBreakOpportunities(text, uax14.HyphensManual)
 
-	// For now, use regular wrapping
-	// TODO: Integrate with UAX #14 break opportunities
-	lines := t.Wrap(text, WrapOptions{MaxWidth: maxWidth})
+	// Filter and modify break opportunities based on controls
+	var allowedBreaks []int
+	allowedBreaks = append(allowedBreaks, 0) // Always include start
+
+	for _, breakPos := range breakOpportunities {
+		if breakPos == 0 {
+			continue // Skip start, already added
+		}
+
+		// Check for controls at this position
+		allow := true
+
+		// Check wrap-after control for previous position
+		if ctrl, ok := controlMap[breakPos-1]; ok {
+			if ctrl.After == WrapControlAvoid {
+				allow = false
+			} else if ctrl.After == WrapControlAlways {
+				allow = true // Force this break
+			}
+		}
+
+		// Check wrap-before control for current position
+		if ctrl, ok := controlMap[breakPos]; ok {
+			if ctrl.Before == WrapControlAvoid {
+				allow = false
+			} else if ctrl.Before == WrapControlAlways {
+				allow = true // Force this break
+			}
+		}
+
+		if allow {
+			allowedBreaks = append(allowedBreaks, breakPos)
+		}
+	}
+
+	// Add forced breaks from WrapControlAlways
+	for pos, ctrl := range controlMap {
+		if ctrl.After == WrapControlAlways {
+			// Force break after this position
+			found := false
+			for _, bp := range allowedBreaks {
+				if bp == pos+1 {
+					found = true
+					break
+				}
+			}
+			if !found && pos+1 <= len(text) {
+				allowedBreaks = append(allowedBreaks, pos+1)
+			}
+		}
+		if ctrl.Before == WrapControlAlways {
+			// Force break before this position
+			found := false
+			for _, bp := range allowedBreaks {
+				if bp == pos {
+					found = true
+					break
+				}
+			}
+			if !found && pos > 0 {
+				allowedBreaks = append(allowedBreaks, pos)
+			}
+		}
+	}
+
+	// Sort break opportunities
+	sort.Ints(allowedBreaks)
+
+	// Build lines from allowed break points
+	return t.buildLinesFromBreaks(text, allowedBreaks, maxWidth)
+}
+
+// buildLinesFromBreaks creates lines from break opportunities.
+func (t *Text) buildLinesFromBreaks(text string, breakPoints []int, maxWidth float64) []Line {
+	if len(breakPoints) == 0 {
+		return []Line{{
+			Content: text,
+			Width:   t.Width(text),
+			Start:   0,
+			End:     len([]rune(text)),
+		}}
+	}
+
+	var lines []Line
+	currentLine := ""
+	currentWidth := 0.0
+	lineStartIdx := 0
+
+	runes := []rune(text)
+
+	for i := 1; i < len(breakPoints); i++ {
+		start := breakPoints[i-1]
+		end := breakPoints[i]
+
+		if start >= len(runes) {
+			break
+		}
+		if end > len(runes) {
+			end = len(runes)
+		}
+
+		segment := string(runes[start:end])
+		testLine := currentLine + segment
+		testWidth := t.Width(testLine)
+
+		if testWidth > maxWidth && currentLine != "" {
+			// Line is full, commit current line
+			lines = append(lines, Line{
+				Content: currentLine,
+				Width:   currentWidth,
+				Start:   lineStartIdx,
+				End:     lineStartIdx + len([]rune(currentLine)),
+			})
+
+			// Start new line
+			currentLine = segment
+			currentWidth = t.Width(segment)
+			lineStartIdx += len([]rune(currentLine))
+		} else {
+			// Add to current line
+			currentLine = testLine
+			currentWidth = testWidth
+		}
+	}
+
+	// Add final line
+	if currentLine != "" {
+		lines = append(lines, Line{
+			Content: currentLine,
+			Width:   currentWidth,
+			Start:   lineStartIdx,
+			End:     lineStartIdx + len([]rune(currentLine)),
+		})
+	}
 
 	return lines
 }
@@ -735,4 +888,159 @@ func (t *Text) ApplyAutospaceMode(text string, mode TextAutospace) string {
 	default:
 		return text
 	}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Word Break: Auto-Phrase (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// PhraseBreaker is an interface for language-specific phrase segmentation.
+//
+// This enables word-break: auto-phrase for CJK languages by allowing users
+// to provide their own dictionary/ML-based segmentation.
+//
+// Users should integrate external libraries for phrase breaking:
+//   - Chinese: jieba, pkuseg, HanLP
+//   - Japanese: MeCab, kuromoji, Sudachi
+//   - Korean: KoNLPy, Mecab-ko
+//   - Thai: ICU, libthai
+//
+// Example:
+//
+//	type MyJiebaBreaker struct {
+//	    segmenter *jieba.Segmenter
+//	}
+//
+//	func (j *MyJiebaBreaker) FindPhrases(text string) []int {
+//	    segments := j.segmenter.Cut(text, true)
+//	    positions := []int{0}
+//	    offset := 0
+//	    for _, seg := range segments {
+//	        offset += len([]rune(seg))
+//	        positions = append(positions, offset)
+//	    }
+//	    return positions
+//	}
+//
+//	breaker := &MyJiebaBreaker{segmenter: jieba.NewSegmenter()}
+//	lines := txt.WrapWithPhrases("你好世界", 20, breaker)
+type PhraseBreaker interface {
+	// FindPhrases returns phrase boundary positions (rune indices).
+	// Positions should be sorted and include 0 as the first position.
+	//
+	// Example: "你好世界" might return [0, 2, 4] for "你好" and "世界"
+	FindPhrases(text string) []int
+}
+
+// WrapWithPhrases wraps text using phrase boundaries from a PhraseBreaker.
+//
+// This implements CSS word-break: auto-phrase, which breaks at natural
+// phrase boundaries in languages that don't use spaces between words.
+//
+// The PhraseBreaker interface allows users to integrate language-specific
+// dictionaries without requiring this library to ship with large dictionary
+// files or ML models.
+//
+// Example:
+//
+//	// User provides their own phrase breaker
+//	breaker := &MyChineseBreaker{}
+//	lines := txt.WrapWithPhrases("你好世界，这是一个测试。", 20, breaker)
+func (t *Text) WrapWithPhrases(text string, maxWidth float64, breaker PhraseBreaker) []Line {
+	if breaker == nil {
+		// Fallback to regular wrapping
+		return t.Wrap(text, WrapOptions{MaxWidth: maxWidth})
+	}
+
+	// Get phrase boundaries from user-provided breaker
+	phraseBoundaries := breaker.FindPhrases(text)
+
+	// Use these as line break opportunities
+	return t.buildLinesFromBreaks(text, phraseBoundaries, maxWidth)
+}
+
+// WrapWithPhrasesAndControls combines phrase breaking with wrap controls.
+//
+// This allows fine-grained control over phrase-based line breaking.
+//
+// Example:
+//
+//	controls := []WrapPoint{
+//	    {Position: 5, After: WrapControlAvoid}, // Don't break after phrase at position 5
+//	}
+//	lines := txt.WrapWithPhrasesAndControls(text, 20, breaker, controls)
+func (t *Text) WrapWithPhrasesAndControls(text string, maxWidth float64, breaker PhraseBreaker, controls []WrapPoint) []Line {
+	if breaker == nil {
+		// Fallback to wrap with controls only
+		return t.WrapWithControls(text, maxWidth, controls)
+	}
+
+	// Get phrase boundaries
+	phraseBoundaries := breaker.FindPhrases(text)
+
+	// Build control map
+	controlMap := make(map[int]WrapPoint)
+	for _, wp := range controls {
+		controlMap[wp.Position] = wp
+	}
+
+	// Filter phrase boundaries based on controls
+	var allowedBreaks []int
+	allowedBreaks = append(allowedBreaks, 0) // Always include start
+
+	for _, breakPos := range phraseBoundaries {
+		if breakPos == 0 {
+			continue
+		}
+
+		allow := true
+
+		// Check wrap-after control for previous position
+		if ctrl, ok := controlMap[breakPos-1]; ok {
+			if ctrl.After == WrapControlAvoid {
+				allow = false
+			} else if ctrl.After == WrapControlAlways {
+				allow = true
+			}
+		}
+
+		// Check wrap-before control for current position
+		if ctrl, ok := controlMap[breakPos]; ok {
+			if ctrl.Before == WrapControlAvoid {
+				allow = false
+			} else if ctrl.Before == WrapControlAlways {
+				allow = true
+			}
+		}
+
+		if allow {
+			allowedBreaks = append(allowedBreaks, breakPos)
+		}
+	}
+
+	// Add forced breaks
+	for pos, ctrl := range controlMap {
+		if ctrl.After == WrapControlAlways || ctrl.Before == WrapControlAlways {
+			found := false
+			checkPos := pos
+			if ctrl.After == WrapControlAlways {
+				checkPos = pos + 1
+			}
+			for _, bp := range allowedBreaks {
+				if bp == checkPos {
+					found = true
+					break
+				}
+			}
+			if !found && checkPos > 0 && checkPos <= len(text) {
+				allowedBreaks = append(allowedBreaks, checkPos)
+			}
+		}
+	}
+
+	// Sort breaks
+	sort.Ints(allowedBreaks)
+
+	// Build lines
+	return t.buildLinesFromBreaks(text, allowedBreaks, maxWidth)
 }

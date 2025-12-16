@@ -221,6 +221,9 @@ type CSSTextStyle struct {
 
 	// Hanging punctuation (CSS Text Level 3 §6)
 	HangingPunctuation HangingPunctuation // Controls punctuation hanging outside line box
+
+	// Text spacing trim (CSS Text Level 4)
+	TextSpacingTrim TextSpacingTrim // Controls CJK spacing trimming
 }
 
 // DefaultCSSTextStyle returns a CSSTextStyle with default values matching CSS defaults.
@@ -241,6 +244,7 @@ func DefaultCSSTextStyle() CSSTextStyle {
 		TextAlignLast:          AlignLeft,
 		VerticalAlign:          AlignLeft,
 		HangingPunctuation:     HangingPunctuationNone,
+		TextSpacingTrim:        TextSpacingTrimNone,
 	}
 }
 
@@ -476,6 +480,11 @@ func (t *Text) WrapCSS(text string, opts CSSWrapOptions) []Line {
 
 	// Apply text transformation
 	processed = t.Transform(processed, opts.Style.TextTransform)
+
+	// Apply text spacing trim (CJK spacing)
+	if opts.Style.TextSpacingTrim != TextSpacingTrimNone {
+		processed = t.TrimCJKSpacing(processed, opts.Style.TextSpacingTrim)
+	}
 
 	// Convert CSS properties to UAX #14 line breaking options
 	hyphenMode := uax14.HyphensManual

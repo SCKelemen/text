@@ -763,6 +763,96 @@ func TestWrapWithControls_Empty(t *testing.T) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  Word Break: Auto-Phrase Tests
+// ═══════════════════════════════════════════════════════════════
+
+// MockPhraseBreaker is a simple test implementation of PhraseBreaker.
+type MockPhraseBreaker struct {
+	boundaries []int
+}
+
+func (m *MockPhraseBreaker) FindPhrases(text string) []int {
+	return m.boundaries
+}
+
+func TestWrapWithPhrases(t *testing.T) {
+	txt := NewTerminal()
+
+	// Simulate CJK text: "你好世界这是测试" (12 chars)
+	// We'll use ASCII for simplicity but pretend it's segmented
+	text := "HelloWorldTest"
+
+	// Mock breaker that segments at: Hello|World|Test
+	breaker := &MockPhraseBreaker{
+		boundaries: []int{0, 5, 10, 14}, // After "Hello", "World", "Test"
+	}
+
+	lines := txt.WrapWithPhrases(text, 10.0, breaker)
+
+	if len(lines) == 0 {
+		t.Fatal("WrapWithPhrases returned no lines")
+	}
+
+	t.Logf("Lines: %d", len(lines))
+	for i, line := range lines {
+		t.Logf("  Line %d: %q (width: %.1f)", i, line.Content, line.Width)
+	}
+
+	// With phrase boundaries at 5, 10, 14 and maxWidth=10,
+	// we should get phrases respecting those boundaries
+	// Each phrase should fit within the width
+	for i, line := range lines {
+		if line.Width > 10.0 {
+			t.Errorf("Line %d width %.1f exceeds max 10.0", i, line.Width)
+		}
+	}
+}
+
+func TestWrapWithPhrases_NilBreaker(t *testing.T) {
+	txt := NewTerminal()
+
+	text := "Hello world"
+	lines := txt.WrapWithPhrases(text, 20.0, nil)
+
+	if len(lines) == 0 {
+		t.Error("WrapWithPhrases with nil breaker returned no lines")
+	}
+}
+
+func TestWrapWithPhrasesAndControls(t *testing.T) {
+	txt := NewTerminal()
+
+	text := "HelloWorldTest"
+
+	breaker := &MockPhraseBreaker{
+		boundaries: []int{0, 5, 10, 14},
+	}
+
+	controls := []WrapPoint{
+		{Position: 5, After: WrapControlAvoid}, // Don't break after "Hello"
+	}
+
+	lines := txt.WrapWithPhrasesAndControls(text, 15.0, breaker, controls)
+
+	if len(lines) == 0 {
+		t.Fatal("WrapWithPhrasesAndControls returned no lines")
+	}
+
+	t.Logf("Lines: %d", len(lines))
+	for i, line := range lines {
+		t.Logf("  Line %d: %q (width: %.1f)", i, line.Content, line.Width)
+	}
+
+	// The control should prevent breaking after position 5
+	// So "HelloWorld" might stay together if it fits
+	for i, line := range lines {
+		if line.Width > 15.0 {
+			t.Errorf("Line %d width %.1f exceeds max 15.0", i, line.Width)
+		}
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  Benchmark Tests
 // ═══════════════════════════════════════════════════════════════
 
