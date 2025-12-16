@@ -4,13 +4,35 @@ A practical, high-level text manipulation library that provides Unicode-correct 
 
 ## Features
 
+### Core Text Operations
 - **Unicode-Correct Width Calculation** - Properly handles CJK characters, emoji, combining marks
 - **Smart Text Wrapping** - Uses UAX #14 line breaking algorithm
 - **Intelligent Truncation** - Respects grapheme cluster boundaries (won't break emoji!)
 - **Text Alignment** - Left, right, center, justify
 - **Bidirectional Text** - Supports Arabic, Hebrew mixed with Latin (UAX #9)
 - **Grapheme Awareness** - Treats emoji sequences, combining marks as single units
+- **Word & Sentence Boundaries** - Uses UAX #29 for proper text segmentation
 - **Renderer-Agnostic** - Works with terminals (cells) and canvas (pixels)
+
+### CSS Text Module Support
+- **White Space Processing** - Normal, pre, nowrap, pre-wrap, pre-line, break-spaces
+- **Text Transformation** - Uppercase, lowercase, capitalize, fullwidth, full-size kana
+- **Word Breaking** - Normal, break-all, keep-all, break-word
+- **Line Breaking** - Auto, loose, normal, strict, anywhere
+- **Overflow Wrapping** - Control word breaking to prevent overflow
+- **Hyphenation** - None, manual, auto (with UAX #14 integration)
+- **Letter & Word Spacing** - Type-safe spacing with CSS units
+
+### Vertical Text Layout
+- **Writing Modes** - Horizontal-tb, vertical-rl, vertical-lr, sideways
+- **Text Orientation** - Mixed, upright, sideways (UAX #50)
+- **Character Rotation** - Automatic based on Unicode properties
+- **Text Combine Upright** - Tate-chu-yoko for horizontal in vertical
+
+### Type-Safe Units
+- **CSS Units Integration** - Uses `github.com/SCKelemen/units` for all measurements
+- **Length Types** - Px, em, ch, rem, vw, vh, and more
+- **Unit Conversion** - Clean API boundaries with proper CSS value types
 
 ## Installation
 
@@ -19,6 +41,8 @@ go get github.com/SCKelemen/text
 ```
 
 ## Quick Start
+
+### Basic Operations
 
 ```go
 package main
@@ -53,6 +77,88 @@ func main() {
     // Align text
     aligned := txt.Align("Hello", 20, text.AlignCenter)
     fmt.Printf("|%s|\n", aligned)  // "|       Hello        |"
+}
+```
+
+### CSS Text Module
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/SCKelemen/text"
+    "github.com/SCKelemen/units"
+)
+
+func main() {
+    txt := text.NewTerminal()
+
+    // White space processing
+    processed, _ := txt.ProcessWhiteSpace("Hello    world\n\nFoo", text.WhiteSpaceNormal)
+    fmt.Println(processed)  // "Hello world Foo"
+
+    // Text transformation
+    upper := txt.Transform("hello world", text.TextTransformUppercase)
+    fmt.Println(upper)  // "HELLO WORLD"
+
+    caps := txt.Transform("hello world", text.TextTransformCapitalize)
+    fmt.Println(caps)  // "Hello World"
+
+    // Word and sentence boundaries
+    words := txt.Words("Hello, world! How are you?")
+    fmt.Println(len(words))  // Includes punctuation and spaces
+
+    wordCount := txt.WordCount("Hello world")  // 2
+    sentenceCount := txt.SentenceCount("Hello. World.")  // 2
+
+    // CSS-style wrapping with text properties
+    lines := txt.WrapCSS("hello    world", text.CSSWrapOptions{
+        MaxWidth: units.Ch(15),
+        Style: text.CSSTextStyle{
+            WhiteSpace:    text.WhiteSpaceNormal,  // Collapse spaces
+            TextTransform: text.TextTransformUppercase,  // Convert to uppercase
+            LetterSpacing: units.Px(0),
+            WordSpacing:   units.Px(0),
+        },
+    })
+    for _, line := range lines {
+        fmt.Println(line.Content)  // "HELLO WORLD"
+    }
+}
+```
+
+### Vertical Text Layout
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/SCKelemen/text"
+)
+
+func main() {
+    txt := text.NewTerminal()
+
+    // Vertical text configuration
+    style := text.VerticalTextStyle{
+        WritingMode:     text.WritingModeVerticalRL,  // Right-to-left vertical
+        TextOrientation: text.TextOrientationMixed,   // CJK upright, Latin rotated
+    }
+
+    // Measure vertical text
+    metrics := txt.MeasureVertical("Hello世界", style)
+    fmt.Printf("Advance: %.1f, InlineSize: %.1f\n", metrics.Advance, metrics.InlineSize)
+
+    // Wrap vertical text into columns
+    columns := txt.WrapVertical("Hello世界test", text.VerticalWrapOptions{
+        MaxBlockSize: 5.0,  // Max column height
+        Style:        style,
+    })
+    for i, col := range columns {
+        fmt.Printf("Column %d: %s\n", i, col.Content)
+    }
 }
 ```
 
@@ -243,17 +349,27 @@ func main() {
 }
 ```
 
-## Unicode Standards
+## Unicode & CSS Standards
 
-This library coordinates multiple Unicode standards:
+This library implements multiple Unicode and CSS specifications:
 
+### Unicode Standards
 - **UAX #11** (East Asian Width) - Character width classification
-- **UAX #14** (Line Breaking) - Line break opportunities
-- **UAX #29** (Text Segmentation) - Grapheme cluster boundaries
+- **UAX #14** (Line Breaking) - Line break opportunities and hyphenation
+- **UAX #29** (Text Segmentation) - Grapheme cluster, word, and sentence boundaries
+- **UAX #50** (Vertical Text Layout) - Character orientation in vertical text
 - **UAX #9** (Bidirectional) - RTL text reordering
 - **UTS #51** (Emoji) - Emoji properties and width
 
-All provided by [`github.com/SCKelemen/unicode`](https://github.com/SCKelemen/unicode).
+All Unicode implementations provided by [`github.com/SCKelemen/unicode`](https://github.com/SCKelemen/unicode).
+
+### CSS Standards
+- **CSS Text Module Level 3** - White space, text transformation, word breaking
+- **CSS Text Module Level 4** - Advanced text layout features
+- **CSS Writing Modes Level 4** - Vertical text, writing direction, text orientation
+- **CSS Values and Units Level 4** - Type-safe length and unit types
+
+CSS unit types provided by [`github.com/SCKelemen/units`](https://github.com/SCKelemen/units).
 
 ## Use Cases
 
