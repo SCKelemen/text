@@ -658,3 +658,184 @@ func TestAlignLines_JustifyDefault(t *testing.T) {
 		t.Logf("Last line content: %q", lastLine.Content)
 	}
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Hanging Punctuation Tests
+// ═══════════════════════════════════════════════════════════════
+
+func TestHangingPunctuation_First(t *testing.T) {
+	txt := NewTerminal()
+
+	// Text with opening quote
+	text := `"Hello world this is a test"`
+
+	tests := []struct {
+		name      string
+		maxWidth  float64
+		mode      HangingPunctuation
+		expectFit string // What we expect to fit on first line
+	}{
+		{
+			name:      "Without hanging - quote counts",
+			maxWidth:  15.0,
+			mode:      HangingPunctuationNone,
+			expectFit: `"Hello world`, // ~13 chars
+		},
+		{
+			name:      "With hanging first - quote doesn't count",
+			maxWidth:  15.0,
+			mode:      HangingPunctuationFirst,
+			expectFit: `"Hello world t`, // ~14-15 chars (quote hangs)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			style := DefaultCSSTextStyle()
+			style.HangingPunctuation = tt.mode
+
+			lines := txt.WrapCSS(text, CSSWrapOptions{
+				MaxWidth: units.Px(tt.maxWidth),
+				Style:    style,
+			})
+
+			if len(lines) == 0 {
+				t.Fatal("Expected at least one line")
+			}
+
+			firstLine := lines[0].Content
+			t.Logf("Mode: %v, First line: %q (width: %.1f)", tt.mode, firstLine, lines[0].Width)
+
+			// With hanging, we should fit more characters
+			if tt.mode == HangingPunctuationFirst {
+				// Should fit more because quote hangs
+				if len(firstLine) <= len(`"Hello world`) {
+					t.Errorf("With hanging first, expected to fit more than without: got %q", firstLine)
+				}
+			}
+		})
+	}
+}
+
+func TestHangingPunctuation_Last(t *testing.T) {
+	txt := NewTerminal()
+
+	// Text with closing quote
+	text := `Hello world."`
+
+	tests := []struct {
+		name      string
+		maxWidth  float64
+		mode      HangingPunctuation
+		shouldFit bool // Should entire text fit?
+	}{
+		{
+			name:      "Without hanging - quote counts",
+			maxWidth:  12.0,
+			mode:      HangingPunctuationNone,
+			shouldFit: false, // 14 chars won't fit in 12
+		},
+		{
+			name:      "With hanging last - quote doesn't count",
+			maxWidth:  12.0,
+			mode:      HangingPunctuationLast,
+			shouldFit: true, // Closing quote hangs, effective width ~13
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			style := DefaultCSSTextStyle()
+			style.HangingPunctuation = tt.mode
+
+			lines := txt.WrapCSS(text, CSSWrapOptions{
+				MaxWidth: units.Px(tt.maxWidth),
+				Style:    style,
+			})
+
+			t.Logf("Mode: %v, Lines: %d", tt.mode, len(lines))
+			for i, line := range lines {
+				t.Logf("  Line %d: %q (width: %.1f)", i, line.Content, line.Width)
+			}
+
+			fitsInOneLine := len(lines) == 1
+			if fitsInOneLine != tt.shouldFit {
+				t.Errorf("Expected shouldFit=%v, got %v lines", tt.shouldFit, len(lines))
+			}
+		})
+	}
+}
+
+func TestHangingPunctuation_ForceEnd(t *testing.T) {
+	txt := NewTerminal()
+
+	// Text with period at end
+	text := "Hello world."
+
+	tests := []struct {
+		name      string
+		maxWidth  float64
+		mode      HangingPunctuation
+		shouldFit bool
+	}{
+		{
+			name:      "Without hanging - period counts",
+			maxWidth:  11.0,
+			mode:      HangingPunctuationNone,
+			shouldFit: false, // 12 chars won't fit in 11
+		},
+		{
+			name:      "With force-end - period hangs",
+			maxWidth:  11.0,
+			mode:      HangingPunctuationForceEnd,
+			shouldFit: true, // Period hangs, effective width ~11
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			style := DefaultCSSTextStyle()
+			style.HangingPunctuation = tt.mode
+
+			lines := txt.WrapCSS(text, CSSWrapOptions{
+				MaxWidth: units.Px(tt.maxWidth),
+				Style:    style,
+			})
+
+			t.Logf("Mode: %v, Lines: %d", tt.mode, len(lines))
+			for i, line := range lines {
+				t.Logf("  Line %d: %q (width: %.1f)", i, line.Content, line.Width)
+			}
+
+			fitsInOneLine := len(lines) == 1
+			if fitsInOneLine != tt.shouldFit {
+				t.Errorf("Expected shouldFit=%v, got %v lines", tt.shouldFit, len(lines))
+			}
+		})
+	}
+}
+
+func TestHangingPunctuation_Combined(t *testing.T) {
+	txt := NewTerminal()
+
+	// Text with both opening and closing quotes
+	text := `"Hello."`
+
+	style := DefaultCSSTextStyle()
+	style.HangingPunctuation = HangingPunctuationFirst | HangingPunctuationLast | HangingPunctuationForceEnd
+
+	lines := txt.WrapCSS(text, CSSWrapOptions{
+		MaxWidth: units.Px(5.0), // Very narrow - only "Hello" should fit with hanging on both sides
+		Style:    style,
+	})
+
+	t.Logf("Lines: %d", len(lines))
+	for i, line := range lines {
+		t.Logf("  Line %d: %q (width: %.1f)", i, line.Content, line.Width)
+	}
+
+	// With both quotes hanging, should fit in one line
+	if len(lines) != 1 {
+		t.Errorf("Expected 1 line with combined hanging, got %d", len(lines))
+	}
+}

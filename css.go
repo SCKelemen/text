@@ -218,7 +218,9 @@ type CSSTextStyle struct {
 	TextAlign     Alignment    // Horizontal alignment
 	TextAlignLast Alignment    // Alignment of last line (justify becomes start)
 	VerticalAlign Alignment    // Vertical alignment within line box
-	HangingPunct  bool         // Allow punctuation to hang outside line box
+
+	// Hanging punctuation (CSS Text Level 3 §6)
+	HangingPunctuation HangingPunctuation // Controls punctuation hanging outside line box
 }
 
 // DefaultCSSTextStyle returns a CSSTextStyle with default values matching CSS defaults.
@@ -238,7 +240,7 @@ func DefaultCSSTextStyle() CSSTextStyle {
 		TextAlign:              AlignLeft,
 		TextAlignLast:          AlignLeft,
 		VerticalAlign:          AlignLeft,
-		HangingPunct:           false,
+		HangingPunctuation:     HangingPunctuationNone,
 	}
 }
 
@@ -505,39 +507,107 @@ func (t *Text) buildLinesFromBreakPoints(text string, breakPoints []int, opts CS
 	}
 
 	var lines []Line
-	lineStart := 0
 	maxWidth := opts.MaxWidth.Raw()
+
+	// Accumulate segments until line is full
+	currentLine := ""
+	currentWidth := 0.0
+	lineStartIdx := 0
 
 	for i := 1; i < len(breakPoints); i++ {
 		segment := text[breakPoints[i-1]:breakPoints[i]]
-		segmentWidth := t.Width(segment)
+
+		// Calculate what the line would be if we add this segment
+		testLine := currentLine + segment
+		testWidth := t.Width(testLine)
 
 		// Apply letter spacing
 		if !opts.Style.LetterSpacing.IsZero() {
-			graphemes := t.Graphemes(segment)
-			segmentWidth += float64(len(graphemes)-1) * opts.Style.LetterSpacing.Raw()
+			graphemes := t.Graphemes(testLine)
+			testWidth += float64(len(graphemes)-1) * opts.Style.LetterSpacing.Raw()
 		}
 
 		// Apply word spacing
 		if !opts.Style.WordSpacing.IsZero() {
-			spaceCount := strings.Count(segment, " ")
-			segmentWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
+			spaceCount := strings.Count(testLine, " ")
+			testWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
 		}
 
-		// Check if this segment fits
-		if segmentWidth <= maxWidth || len(lines) == 0 {
-			// Create a line
+		// Apply hanging punctuation - reduces effective width
+		effectiveWidth := t.calculateEffectiveWidth(testLine, testWidth, opts.Style.HangingPunctuation)
+
+		// Check if adding this segment would exceed maxWidth
+		if effectiveWidth > maxWidth && currentLine != "" {
+			// Line is full, commit current line
 			lines = append(lines, Line{
-				Content: segment,
-				Width:   segmentWidth,
-				Start:   lineStart,
-				End:     lineStart + len([]rune(segment)),
+				Content: currentLine,
+				Width:   currentWidth,
+				Start:   lineStartIdx,
+				End:     lineStartIdx + len([]rune(currentLine)),
 			})
-			lineStart += len([]rune(segment))
+
+			// Start new line with this segment
+			currentLine = segment
+			currentWidth = t.Width(segment)
+
+			// Apply spacing for new line
+			if !opts.Style.LetterSpacing.IsZero() {
+				graphemes := t.Graphemes(currentLine)
+				currentWidth += float64(len(graphemes)-1) * opts.Style.LetterSpacing.Raw()
+			}
+			if !opts.Style.WordSpacing.IsZero() {
+				spaceCount := strings.Count(currentLine, " ")
+				currentWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
+			}
+
+			lineStartIdx += len([]rune(currentLine))
+		} else {
+			// Add segment to current line
+			currentLine = testLine
+			currentWidth = testWidth
 		}
 	}
 
+	// Add final line if any content remains
+	if currentLine != "" {
+		lines = append(lines, Line{
+			Content: currentLine,
+			Width:   currentWidth,
+			Start:   lineStartIdx,
+			End:     lineStartIdx + len([]rune(currentLine)),
+		})
+	}
+
 	return lines
+}
+
+// calculateEffectiveWidth returns the effective width of text accounting for hanging punctuation.
+// Hanging punctuation reduces the effective width because it hangs outside the line box.
+func (t *Text) calculateEffectiveWidth(text string, baseWidth float64, mode HangingPunctuation) float64 {
+	if mode == HangingPunctuationNone || len(text) == 0 {
+		return baseWidth
+	}
+
+	runes := []rune(text)
+	effectiveWidth := baseWidth
+
+	// Check first character
+	if len(runes) > 0 {
+		shouldHang, hangWidth := t.ShouldHang(text, 0, mode)
+		if shouldHang {
+			effectiveWidth -= hangWidth
+		}
+	}
+
+	// Check last character
+	if len(runes) > 0 {
+		shouldHang, hangWidth := t.ShouldHang(text, len(runes)-1, mode)
+		if shouldHang {
+			effectiveWidth -= hangWidth
+		}
+	}
+
+	return effectiveWidth
 }
 
 // ═══════════════════════════════════════════════════════════════
