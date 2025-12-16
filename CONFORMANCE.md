@@ -4,73 +4,25 @@ This document describes the official conformance tests available for the standar
 
 ## Overview
 
-This library implements several Unicode standards and CSS specifications. Where official conformance test data exists, we reference it and provide guidance for running tests.
+This library implements CSS Text Module specifications and integrates with the `unicode` library for Unicode standard support. This document focuses on testing **this text library's implementation** - the Unicode standards themselves are tested in the `unicode` library.
 
-## Unicode Standards Conformance
+## Unicode Standards Integration
 
-### UAX #9: Bidirectional Algorithm
+This library integrates with the separate `unicode` library which provides:
 
-**Status**: ✅ **100% Conformance** (513,494/513,494 tests passing)
+- **UAX #9**: Bidirectional Algorithm (100% conformance - 513,494/513,494 tests)
+- **UAX #11**: East Asian Width (character property data)
+- **UAX #14**: Line Breaking Algorithm (practical implementation)
+- **UAX #29**: Text Segmentation (official tests included)
+- **UTS #51**: Unicode Emoji (sequence handling)
 
-The `unicode/uax9` package has already achieved 100% conformance with official Unicode test data:
-- `BidiTest.txt` - Full bidirectional algorithm test suite
-- `BidiCharacterTest.txt` - Character-level bidi tests
+**Testing**: Unicode conformance is tested in the `unicode` library. This library's tests focus on:
+- Correct integration with Unicode algorithms
+- CSS Text Module behavior
+- Text measurement and wrapping
+- Bidirectional text handling
 
-**Test Files**: Already included in `unicode/uax9/` directory
-**Source**: [Unicode Bidi Test Data](https://www.unicode.org/Public/UCD/latest/ucd/BidiTest.txt)
-
-### UAX #14: Line Breaking Algorithm
-
-**Status**: ⚠️ **Partial Implementation** (Simplified for practical use)
-
-Official test data available but not included by default:
-- `LineBreakTest.txt` - Complete line breaking test suite
-
-**Running Tests**:
-```bash
-# Download the official test file
-cd unicode/uax14
-curl -O https://www.unicode.org/Public/UCD/latest/ucd/auxiliary/LineBreakTest.txt
-
-# Run conformance tests
-go test -v -run TestOfficialUnicodeVectors
-```
-
-**Source**: [LineBreakTest.txt](https://www.unicode.org/Public/UCD/latest/ucd/auxiliary/LineBreakTest.txt)
-
-**Note**: Our UAX #14 implementation is simplified for practical text wrapping and may not pass 100% of edge cases. The implementation prioritizes:
-- Common use cases (Latin, CJK, emoji)
-- Performance
-- Integration with CSS Text Module
-- Practical text layout needs
-
-### UAX #29: Text Segmentation
-
-**Status**: ✅ **Official Tests Included**
-
-The `unicode/uax29` package includes official conformance test data:
-- `GraphemeBreakTest.txt` - Grapheme cluster boundary tests
-- `WordBreakTest.txt` - Word boundary tests
-- `SentenceBreakTest.txt` - Sentence boundary tests
-
-**Test Files**: Already included in `unicode/uax29/` directory
-**Source**: [Unicode Text Segmentation Tests](https://www.unicode.org/Public/UCD/latest/ucd/auxiliary/)
-
-### UAX #11: East Asian Width
-
-**Status**: ✅ **Implemented** (Character property data embedded)
-
-Uses official Unicode Character Database (UCD) data for East Asian Width properties.
-
-**Source**: [UAX #11 Specification](https://www.unicode.org/reports/tr11/)
-
-### UTS #51: Unicode Emoji
-
-**Status**: ✅ **Implemented**
-
-Handles emoji sequences, skin tones, ZWJ sequences based on Unicode Emoji specification.
-
-**Source**: [UTS #51 Specification](https://www.unicode.org/reports/tr51/)
+For Unicode conformance details, see the `unicode` library documentation.
 
 ## CSS Text Module Conformance
 
@@ -104,9 +56,9 @@ Official test suite status:
 
 **Testing Approach**: Same as Level 3 - unit and integration tests verify spec-compliant behavior.
 
-## Running All Tests
+## Running Tests
 
-### Text Library Tests
+### Test Library Tests
 
 ```bash
 # Run all tests
@@ -118,29 +70,8 @@ go test -cover ./...
 # Run with race detection
 go test -race ./...
 
-# Run specific conformance tests
-go test -v -run Conformance ./...
-go test -v -run Official ./...
-```
-
-### Unicode Library Tests
-
-```bash
-# Run tests in unicode packages
-cd ../unicode
-go test ./...
-
-# Run official conformance tests (if test data present)
-cd uax9
-go test -v -run TestBidiConformance
-
-cd ../uax14
-go test -v -run TestOfficialUnicodeVectors
-
-cd ../uax29
-go test -v -run TestGraphemeBreak
-go test -v -run TestWordBreak
-go test -v -run TestSentenceBreak
+# Run with verbose output
+go test -v ./...
 ```
 
 ## Conformance Test Data Sources
@@ -174,32 +105,21 @@ CSS conformance tests are part of the Web Platform Tests:
 GitHub Actions automatically runs all tests on:
 - Every push to `main` branch
 - Every pull request
-- Multiple Go versions (1.21, 1.22, 1.23)
-- Multiple platforms (Ubuntu, macOS)
+- Multiple Go versions (1.21, 1.23, 1.25)
+- Platform: Ubuntu Latest
+- Includes: tests, linting, builds, and benchmarks
 
 See `.github/workflows/ci.yml` for configuration.
 
-## Contributing Conformance Tests
+## Contributing Tests
 
-If you'd like to add more conformance testing:
+If you'd like to add more tests:
 
-1. **Download Test Data**: Get official test files from Unicode or W3C
-2. **Add Test Parser**: Implement test file parser if needed
-3. **Run Tests**: Create test functions that compare against official results
-4. **Document**: Update this file with new conformance status
-
-### Example: Adding UAX #14 Conformance
-
-```bash
-# 1. Download test file
-cd unicode/uax14
-curl -O https://www.unicode.org/Public/UCD/latest/ucd/auxiliary/LineBreakTest.txt
-
-# 2. Run existing test (already implemented)
-go test -v -run TestOfficialUnicodeVectors
-
-# 3. Results will show pass rate
-```
+1. **Unit Tests**: Add tests for specific CSS properties or text operations
+2. **Integration Tests**: Test combinations of properties and real-world scenarios
+3. **Edge Cases**: Test unusual input (empty strings, very long text, mixed scripts)
+4. **Benchmarks**: Add performance benchmarks for critical paths
+5. **Document**: Update this file with any new conformance-related tests
 
 ## Conformance vs. Practical Implementation
 
@@ -220,20 +140,15 @@ This library prioritizes **practical text layout** over 100% conformance in some
 - ⚠️ **Edge cases**: May differ on obscure Unicode sequences
 - ✅ **Tested**: Comprehensive unit and integration tests
 
-## Conformance Badges
+## Status Summary
 
-### Unicode Standards
-
-- **UAX #9 (Bidi)**: ![100% Conformance](https://img.shields.io/badge/conformance-100%25-brightgreen)
-- **UAX #11 (EA Width)**: ![Implemented](https://img.shields.io/badge/status-implemented-blue)
-- **UAX #14 (Line Break)**: ![Partial](https://img.shields.io/badge/conformance-partial-yellow)
-- **UAX #29 (Segmentation)**: ![Official Tests](https://img.shields.io/badge/tests-official-blue)
-- **UTS #51 (Emoji)**: ![Implemented](https://img.shields.io/badge/status-implemented-blue)
-
-### CSS Specifications
+### Text Library Implementation
 
 - **CSS Text Level 3**: ![100% Features](https://img.shields.io/badge/features-100%25-brightgreen)
 - **CSS Text Level 4**: ![100% In-Scope](https://img.shields.io/badge/in--scope-100%25-brightgreen)
+- **Unicode Integration**: ![Fully Integrated](https://img.shields.io/badge/unicode-integrated-blue)
+- **Test Coverage**: ![Comprehensive](https://img.shields.io/badge/tests-comprehensive-brightgreen)
+- **CI/CD**: ![Active](https://img.shields.io/badge/ci-active-brightgreen)
 
 ## References
 
