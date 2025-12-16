@@ -409,6 +409,102 @@ func TestSpanishHyphenation(t *testing.T) {
 	}
 }
 
+func TestSwedishHyphenation(t *testing.T) {
+	dict := NewSwedishHyphenation()
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"exempel", true},
+		{"dator", true},
+		{"information", true},
+		{"svenska", true},
+		{"ordbok", true},
+		{"förening", true},
+		{"återtag", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			if tt.expectPoints && len(points) == 0 {
+				t.Logf("Warning: No hyphenation points for Swedish word %q", tt.word)
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("Swedish: %s -> %s (points: %v)", tt.word, hyphenated, points)
+			}
+		})
+	}
+}
+
+func TestNorwegianHyphenation(t *testing.T) {
+	dict := NewNorwegianHyphenation()
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"eksempel", true},
+		{"datamaskin", true},
+		{"informasjon", true},
+		{"norsk", true},
+		{"ordbok", true},
+		{"forening", true},
+		{"behandling", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			if tt.expectPoints && len(points) == 0 {
+				t.Logf("Warning: No hyphenation points for Norwegian word %q", tt.word)
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("Norwegian: %s -> %s (points: %v)", tt.word, hyphenated, points)
+			}
+		})
+	}
+}
+
+func TestDanishHyphenation(t *testing.T) {
+	dict := NewDanishHyphenation()
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"eksempel", true},
+		{"computer", true},
+		{"information", true},
+		{"dansk", true},
+		{"ordbog", true},
+		{"forening", true},
+		{"behandling", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			if tt.expectPoints && len(points) == 0 {
+				t.Logf("Warning: No hyphenation points for Danish word %q", tt.word)
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("Danish: %s -> %s (points: %v)", tt.word, hyphenated, points)
+			}
+		})
+	}
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Custom Dictionary Tests
 // ═══════════════════════════════════════════════════════════════
