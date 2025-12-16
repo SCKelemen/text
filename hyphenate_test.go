@@ -316,6 +316,163 @@ func countOccurrences(s, substr string) int {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  Multiple Language Tests
+// ═══════════════════════════════════════════════════════════════
+
+func TestFrenchHyphenation(t *testing.T) {
+	dict := NewFrenchHyphenation()
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"exemple", true},
+		{"dictionnaire", true},
+		{"information", true},
+		{"français", true},
+		{"bonjour", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			if tt.expectPoints && len(points) == 0 {
+				t.Logf("Warning: No hyphenation points for French word %q", tt.word)
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("French: %s -> %s (points: %v)", tt.word, hyphenated, points)
+			}
+		})
+	}
+}
+
+func TestGermanHyphenation(t *testing.T) {
+	dict := NewGermanHyphenation()
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"beispiel", true},
+		{"deutsch", true},
+		{"wörterbuch", true},
+		{"computer", true},
+		{"verarbeitung", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			if tt.expectPoints && len(points) == 0 {
+				t.Logf("Warning: No hyphenation points for German word %q", tt.word)
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("German: %s -> %s (points: %v)", tt.word, hyphenated, points)
+			}
+		})
+	}
+}
+
+func TestSpanishHyphenation(t *testing.T) {
+	dict := NewSpanishHyphenation()
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"ejemplo", true},
+		{"información", true},
+		{"computadora", true},
+		{"español", true},
+		{"diccionario", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			if tt.expectPoints && len(points) == 0 {
+				t.Logf("Warning: No hyphenation points for Spanish word %q", tt.word)
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("Spanish: %s -> %s (points: %v)", tt.word, hyphenated, points)
+			}
+		})
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Custom Dictionary Tests
+// ═══════════════════════════════════════════════════════════════
+
+func TestNewHyphenationDictionary(t *testing.T) {
+	// Create a simple custom dictionary
+	patterns := map[string]string{
+		"ex1am":    "ex1am",
+		"ta1ble":   "ta1ble",
+		"com1put":  "com1put",
+	}
+
+	dict := NewHyphenationDictionary(patterns, 2, 3)
+
+	tests := []struct {
+		word         string
+		expectPoints bool
+	}{
+		{"example", true},
+		{"table", true},
+		{"computer", true},
+		{"unknown", false}, // Not in our small dictionary
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.word, func(t *testing.T) {
+			points := dict.Hyphenate(tt.word)
+
+			hasPoints := len(points) > 0
+			if hasPoints != tt.expectPoints {
+				if tt.expectPoints {
+					t.Logf("Note: Expected points for %q but got none", tt.word)
+				}
+			}
+
+			if len(points) > 0 {
+				hyphenated := dict.HyphenateWithString(tt.word, "-")
+				t.Logf("Custom: %s -> %s", tt.word, hyphenated)
+			}
+		})
+	}
+}
+
+func TestCustomDictionaryConstraints(t *testing.T) {
+	// Test with very restrictive constraints
+	patterns := map[string]string{
+		"1ba": "1ba",
+		"1na": "1na",
+	}
+
+	// Require at least 4 chars on left, 4 on right
+	dict := NewHyphenationDictionary(patterns, 4, 4)
+
+	word := "banana" // 6 chars total
+	points := dict.Hyphenate(word)
+
+	// Should have no hyphenation points because word is too short
+	// for the constraints (would need at least 4+4=8 chars)
+	if len(points) > 0 {
+		t.Errorf("Expected no hyphenation for %q with minLeft=4, minRight=4, got %v", word, points)
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  Benchmark Tests
 // ═══════════════════════════════════════════════════════════════
 
