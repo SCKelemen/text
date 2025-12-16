@@ -210,6 +210,37 @@ const (
 )
 
 // ═══════════════════════════════════════════════════════════════
+//  Text Indentation (CSS Text §8)
+// ═══════════════════════════════════════════════════════════════
+
+// TextIndent controls indentation of the first line or all lines.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#text-indent-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-indent
+type TextIndent struct {
+	// Length is the indentation amount (can be negative).
+	Length units.Length
+
+	// Hanging applies indent to all lines except the first (reverse indent).
+	// CSS: text-indent: 2em hanging;
+	Hanging bool
+
+	// EachLine applies indent to each line after a forced line break.
+	// CSS: text-indent: 2em each-line;
+	EachLine bool
+}
+
+// DefaultTextIndent returns zero indentation.
+func DefaultTextIndent() TextIndent {
+	return TextIndent{
+		Length:   units.Px(0),
+		Hanging:  false,
+		EachLine: false,
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  CSS Text Style Configuration
 // ═══════════════════════════════════════════════════════════════
 
@@ -239,10 +270,11 @@ type CSSTextStyle struct {
 	WordSpacing   units.Length // Additional spacing between words
 
 	// Indentation and alignment
-	TextIndent    units.Length // First line indentation
-	TextAlign     Alignment    // Horizontal alignment
-	TextAlignLast Alignment    // Alignment of last line (justify becomes start)
-	VerticalAlign Alignment    // Vertical alignment within line box
+	TextIndent    TextIndent // First line indentation (supports hanging, each-line)
+	TextAlign     Alignment  // Horizontal alignment
+	TextAlignLast Alignment  // Alignment of last line (justify becomes start)
+	VerticalAlign Alignment  // Vertical alignment within line box
+	Direction     Direction  // Text direction (LTR, RTL, Auto)
 
 	// Hanging punctuation (CSS Text Level 3 §6)
 	HangingPunctuation HangingPunctuation // Controls punctuation hanging outside line box
@@ -264,10 +296,11 @@ func DefaultCSSTextStyle() CSSTextStyle {
 		TextOverflowEllipsisString: "...",
 		LetterSpacing:          units.Px(0),
 		WordSpacing:            units.Px(0),
-		TextIndent:             units.Px(0),
+		TextIndent:             DefaultTextIndent(),
 		TextAlign:              AlignLeft,
 		TextAlignLast:          AlignLeft,
 		VerticalAlign:          AlignLeft,
+		Direction:              DirectionLTR,
 		HangingPunctuation:     HangingPunctuationNone,
 		TextSpacingTrim:        TextSpacingTrimNone,
 	}
@@ -786,8 +819,8 @@ func (t *Text) AlignLines(lines []Line, width float64, style CSSTextStyle) []Lin
 			}
 		}
 
-		// Apply alignment
-		result[i].Content = t.Align(result[i].Content, width, align)
+		// Apply alignment with direction support
+		result[i].Content = t.AlignWithDirection(result[i].Content, width, align, style.Direction, style.TextAlign)
 		result[i].Width = width
 	}
 

@@ -494,6 +494,28 @@ func (t *Text) truncateStart(graphemes []string, targetWidth float64, ellipsis s
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  Direction
+// ═══════════════════════════════════════════════════════════════
+
+// Direction specifies text directionality (LTR or RTL).
+//
+// Specification:
+//   - CSS Writing Modes Level 3: https://www.w3.org/TR/css-writing-modes-3/#direction
+//   - MDN direction: https://developer.mozilla.org/en-US/docs/Web/CSS/direction
+type Direction int
+
+const (
+	// DirectionLTR is left-to-right text direction (Latin, Cyrillic, etc).
+	DirectionLTR Direction = iota
+
+	// DirectionRTL is right-to-left text direction (Arabic, Hebrew, etc).
+	DirectionRTL
+
+	// DirectionAuto determines direction from content using Unicode bidi algorithm.
+	DirectionAuto
+)
+
+// ═══════════════════════════════════════════════════════════════
 //  Alignment
 // ═══════════════════════════════════════════════════════════════
 
@@ -507,20 +529,33 @@ func (t *Text) truncateStart(graphemes []string, targetWidth float64, ellipsis s
 type Alignment int
 
 const (
-	// AlignLeft aligns text to the left.
+	// AlignLeft aligns text to the left (physical direction).
 	AlignLeft Alignment = iota
 
 	// AlignCenter centers text.
 	AlignCenter
 
-	// AlignRight aligns text to the right.
+	// AlignRight aligns text to the right (physical direction).
 	AlignRight
 
 	// AlignJustify distributes padding between words.
 	AlignJustify
+
+	// AlignStart aligns text to the start edge (flow-relative).
+	// Left in LTR, right in RTL.
+	AlignStart
+
+	// AlignEnd aligns text to the end edge (flow-relative).
+	// Right in LTR, left in RTL.
+	AlignEnd
+
+	// AlignMatchParent inherits parent's alignment, computed for direction.
+	AlignMatchParent
 )
 
 // Align pads text to a specific width with the specified alignment.
+// For flow-relative alignment (start/end), assumes LTR direction.
+// Use AlignWithDirection for RTL support.
 //
 // The width parameter is in abstract units (cells for terminals, pixels for canvas).
 //
@@ -530,6 +565,25 @@ const (
 //	aligned := txt.Align("Hello", 20, text.AlignCenter)
 //	fmt.Printf("|%s|", aligned)  // "|       Hello        |" (20 cells total)
 func (t *Text) Align(text string, width float64, align Alignment) string {
+	return t.AlignWithDirection(text, width, align, DirectionLTR, AlignLeft)
+}
+
+// AlignWithDirection pads text to a specific width with the specified alignment,
+// respecting text direction for flow-relative alignments (start/end/match-parent).
+//
+// Parameters:
+//   - text: The text to align
+//   - width: The target width
+//   - align: The alignment mode
+//   - direction: Text direction (LTR, RTL, or Auto)
+//   - parentAlign: Parent's alignment (used for match-parent)
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	// In RTL context, start means right
+//	aligned := txt.AlignWithDirection("مرحبا", 20, text.AlignStart, text.DirectionRTL, text.AlignLeft)
+func (t *Text) AlignWithDirection(text string, width float64, align Alignment, direction Direction, parentAlign Alignment) string {
 	textWidth := t.Width(text)
 
 	if textWidth >= width {
@@ -538,7 +592,10 @@ func (t *Text) Align(text string, width float64, align Alignment) string {
 
 	padding := width - textWidth
 
-	switch align {
+	// Resolve flow-relative alignments
+	resolvedAlign := t.resolveAlignment(align, direction, parentAlign)
+
+	switch resolvedAlign {
 	case AlignLeft:
 		return text + t.makePadding(padding)
 	case AlignRight:
@@ -551,6 +608,37 @@ func (t *Text) Align(text string, width float64, align Alignment) string {
 		return t.justify(text, padding)
 	default:
 		return text
+	}
+}
+
+// resolveAlignment resolves flow-relative alignments (start/end/match-parent) to physical alignments.
+func (t *Text) resolveAlignment(align Alignment, direction Direction, parentAlign Alignment) Alignment {
+	// Handle match-parent first
+	if align == AlignMatchParent {
+		// Compute parent's alignment for current direction
+		align = t.resolveAlignment(parentAlign, direction, AlignLeft)
+		return align
+	}
+
+	// Resolve direction if auto
+	if direction == DirectionAuto {
+		direction = DirectionLTR // Default to LTR (could use UAX #9 for auto-detection)
+	}
+
+	// Resolve start/end based on direction
+	switch align {
+	case AlignStart:
+		if direction == DirectionRTL {
+			return AlignRight
+		}
+		return AlignLeft
+	case AlignEnd:
+		if direction == DirectionRTL {
+			return AlignLeft
+		}
+		return AlignRight
+	default:
+		return align
 	}
 }
 

@@ -251,7 +251,7 @@ type CSSTextBounds struct {
 	// Applied spacing
 	LetterSpacing units.Length
 	WordSpacing   units.Length
-	TextIndent    units.Length
+	TextIndent    TextIndent
 }
 
 // MeasureCSS calculates complete bounds with CSS text properties.

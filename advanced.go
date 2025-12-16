@@ -29,6 +29,146 @@ import (
 //   - web.dev CJK: https://web.dev/learn/css/typography/#line-breaking
 
 // ═══════════════════════════════════════════════════════════════
+//  White Space Collapse (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// WhiteSpaceCollapse controls how white space sequences are handled.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#white-space-collapsing
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/white-space-collapse
+type WhiteSpaceCollapse int
+
+const (
+	// WhiteSpaceCollapseCollapse collapses sequences of white space into single space.
+	WhiteSpaceCollapseCollapse WhiteSpaceCollapse = iota
+
+	// WhiteSpaceCollapsePreserve preserves all white space.
+	WhiteSpaceCollapsePreserve
+
+	// WhiteSpaceCollapsePreserveBreaks collapses white space but preserves line breaks.
+	WhiteSpaceCollapsePreserveBreaks
+
+	// WhiteSpaceCollapsePreserveSpaces preserves space characters but collapses other whitespace.
+	WhiteSpaceCollapsePreserveSpaces
+
+	// WhiteSpaceCollapseBreakSpaces like preserve but allows breaking at spaces.
+	WhiteSpaceCollapseBreakSpaces
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  White Space Trim (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// WhiteSpaceTrim controls trimming of whitespace at box boundaries.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#white-space-trim
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/white-space-trim
+type WhiteSpaceTrim int
+
+const (
+	// WhiteSpaceTrimNone disables trimming.
+	WhiteSpaceTrimNone WhiteSpaceTrim = iota
+
+	// WhiteSpaceTrimDiscardBefore trims whitespace at start of box.
+	WhiteSpaceTrimDiscardBefore
+
+	// WhiteSpaceTrimDiscardAfter trims whitespace at end of box.
+	WhiteSpaceTrimDiscardAfter
+
+	// WhiteSpaceTrimDiscardInner trims whitespace between boxes.
+	WhiteSpaceTrimDiscardInner
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Wrap Mode (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// TextWrapMode controls whether lines may wrap at soft wrap opportunities.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#text-wrap-mode
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap-mode
+type TextWrapMode int
+
+const (
+	// TextWrapModeWrap allows wrapping at soft wrap opportunities.
+	TextWrapModeWrap TextWrapMode = iota
+
+	// TextWrapModeNowrap prevents wrapping.
+	TextWrapModeNowrap
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Wrap Style (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// TextWrapStyle controls how wrapping is performed.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#text-wrap-style
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap-style
+//   - web.dev: https://web.dev/articles/css-text-wrap-balance
+type TextWrapStyle int
+
+const (
+	// TextWrapStyleAuto uses standard wrapping.
+	TextWrapStyleAuto TextWrapStyle = iota
+
+	// TextWrapStyleBalance tries to balance line lengths.
+	TextWrapStyleBalance
+
+	// TextWrapStyleStable minimizes reflow when editing.
+	TextWrapStyleStable
+
+	// TextWrapStylePretty optimizes for readability.
+	TextWrapStylePretty
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Word Space Transform (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// WordSpaceTransform transforms word separators between styles.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#word-space-transform
+type WordSpaceTransform int
+
+const (
+	// WordSpaceTransformNone performs no transformation.
+	WordSpaceTransformNone WordSpaceTransform = iota
+
+	// WordSpaceTransformSpace preserves/converts to space character.
+	WordSpaceTransformSpace
+
+	// WordSpaceTransformIdeographicSpace converts to ideographic space (U+3000).
+	WordSpaceTransformIdeographicSpace
+
+	// WordSpaceTransformAutoPhrase enables auto phrase detection.
+	WordSpaceTransformAutoPhrase
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Wrap Inside (CSS Text Level 4)
+// ═══════════════════════════════════════════════════════════════
+
+// WrapInside controls whether line breaking is allowed within an element.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#wrap-inside
+type WrapInside int
+
+const (
+	// WrapInsideAuto allows normal line breaking within the element.
+	WrapInsideAuto WrapInside = iota
+
+	// WrapInsideAvoid suppresses line breaking within the element.
+	WrapInsideAvoid
+)
+
+// ═══════════════════════════════════════════════════════════════
 //  Text Justify (CSS Text §8)
 // ═══════════════════════════════════════════════════════════════
 
