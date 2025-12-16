@@ -1,0 +1,828 @@
+package text
+
+import (
+	"strings"
+	"unicode"
+
+	"github.com/SCKelemen/unicode/uax14"
+	"github.com/SCKelemen/unicode/uax29"
+	"github.com/SCKelemen/units"
+)
+
+// CSS Text Module Level 3/4 Implementation
+//
+// This package implements the CSS Text Module specifications:
+//   - CSS Text Module Level 3: https://www.w3.org/TR/css-text-3/
+//   - CSS Text Module Level 4: https://www.w3.org/TR/css-text-4/
+//
+// Additional resources:
+//   - MDN CSS Text: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_text
+//   - web.dev Typography: https://web.dev/learn/css/typography
+
+// ═══════════════════════════════════════════════════════════════
+//  White Space Processing (CSS Text §4)
+// ═══════════════════════════════════════════════════════════════
+
+// WhiteSpace controls how white space is handled inside an element.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#white-space-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
+type WhiteSpace int
+
+const (
+	// WhiteSpaceNormal collapses white space sequences and wraps lines.
+	// Newlines are treated as spaces.
+	WhiteSpaceNormal WhiteSpace = iota
+
+	// WhiteSpacePre preserves all white space and does not wrap.
+	// Like HTML <pre> tag.
+	WhiteSpacePre
+
+	// WhiteSpaceNoWrap collapses white space but does not wrap lines.
+	WhiteSpaceNoWrap
+
+	// WhiteSpacePreWrap preserves white space and wraps lines.
+	WhiteSpacePreWrap
+
+	// WhiteSpacePreLine collapses white space sequences but preserves newlines.
+	WhiteSpacePreLine
+
+	// WhiteSpaceBreakSpaces preserves white space and allows breaking at spaces.
+	WhiteSpaceBreakSpaces
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Transformation (CSS Text §2)
+// ═══════════════════════════════════════════════════════════════
+
+// TextTransform controls case transformation of text.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#text-transform-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-transform
+type TextTransform int
+
+const (
+	// TextTransformNone performs no transformation.
+	TextTransformNone TextTransform = iota
+
+	// TextTransformUppercase converts all characters to uppercase.
+	TextTransformUppercase
+
+	// TextTransformLowercase converts all characters to lowercase.
+	TextTransformLowercase
+
+	// TextTransformCapitalize capitalizes the first character of each word.
+	TextTransformCapitalize
+
+	// TextTransformFullWidth converts characters to their fullwidth forms.
+	// Used in East Asian typography.
+	TextTransformFullWidth
+
+	// TextTransformFullSizeKana converts small kana to full-size equivalents.
+	TextTransformFullSizeKana
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Word Breaking (CSS Text §5)
+// ═══════════════════════════════════════════════════════════════
+
+// WordBreak controls word breaking rules for CJK and other scripts.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#word-break-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/word-break
+type WordBreak int
+
+const (
+	// WordBreakNormal uses default line break rules.
+	WordBreakNormal WordBreak = iota
+
+	// WordBreakBreakAll allows breaks between any characters for non-CJK scripts.
+	WordBreakBreakAll
+
+	// WordBreakKeepAll prevents breaks between CJK characters.
+	// Only breaks at whitespace and punctuation.
+	WordBreakKeepAll
+
+	// WordBreakBreakWord is like normal, but allows breaking within words
+	// if there are no acceptable break points in the line.
+	WordBreakBreakWord
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Line Breaking (CSS Text §5)
+// ═══════════════════════════════════════════════════════════════
+
+// LineBreak controls line breaking strictness for CJK text.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#line-break-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/line-break
+type LineBreak int
+
+const (
+	// LineBreakAuto uses the default line breaking rule.
+	LineBreakAuto LineBreak = iota
+
+	// LineBreakLoose uses the least restrictive line break rule.
+	// Allows breaks at more positions.
+	LineBreakLoose
+
+	// LineBreakNormal uses the common line break rule.
+	LineBreakNormal
+
+	// LineBreakStrict uses the most restrictive line break rule.
+	// Follows traditional typography rules strictly.
+	LineBreakStrict
+
+	// LineBreakAnywhere allows breaks at any character, even within words.
+	LineBreakAnywhere
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Overflow Wrapping (CSS Text §5)
+// ═══════════════════════════════════════════════════════════════
+
+// OverflowWrap controls whether to break within words to prevent overflow.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#overflow-wrap-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-wrap
+type OverflowWrap int
+
+const (
+	// OverflowWrapNormal breaks only at allowed break points.
+	OverflowWrapNormal OverflowWrap = iota
+
+	// OverflowWrapBreakWord breaks within words if necessary to prevent overflow.
+	OverflowWrapBreakWord
+
+	// OverflowWrapAnywhere breaks at any point if necessary.
+	OverflowWrapAnywhere
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Hyphens (CSS Text §4.3)
+// ═══════════════════════════════════════════════════════════════
+
+// Hyphens controls hyphenation behavior.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#hyphenation
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/hyphens
+type Hyphens int
+
+const (
+	// HyphensNone disables all hyphenation.
+	HyphensNone Hyphens = iota
+
+	// HyphensManual only allows hyphenation at manually specified points (soft hyphens).
+	HyphensManual
+
+	// HyphensAuto allows automatic hyphenation using language-appropriate rules.
+	HyphensAuto
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Overflow (CSS UI §3.1)
+// ═══════════════════════════════════════════════════════════════
+
+// TextOverflow controls how overflowing inline content is signaled to users.
+// Based on CSS Basic User Interface Module Level 4 §3.1:
+// https://www.w3.org/TR/css-ui-4/#text-overflow
+type TextOverflow int
+
+const (
+	// TextOverflowClip clips the text at the content edge (no ellipsis).
+	TextOverflowClip TextOverflow = iota
+
+	// TextOverflowEllipsis displays an ellipsis ('...') to represent clipped text.
+	TextOverflowEllipsis
+
+	// TextOverflowString displays a custom string to represent clipped text.
+	// The string value is specified separately.
+	TextOverflowString
+
+	// TextOverflowFade fades out the end of the text (not widely supported).
+	TextOverflowFade
+)
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Indentation (CSS Text §8)
+// ═══════════════════════════════════════════════════════════════
+
+// TextIndent controls indentation of the first line or all lines.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#text-indent-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-indent
+type TextIndent struct {
+	// Length is the indentation amount (can be negative).
+	Length units.Length
+
+	// Hanging applies indent to all lines except the first (reverse indent).
+	// CSS: text-indent: 2em hanging;
+	Hanging bool
+
+	// EachLine applies indent to each line after a forced line break.
+	// CSS: text-indent: 2em each-line;
+	EachLine bool
+}
+
+// DefaultTextIndent returns zero indentation.
+func DefaultTextIndent() TextIndent {
+	return TextIndent{
+		Length:   units.Px(0),
+		Hanging:  false,
+		EachLine: false,
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CSS Text Style Configuration
+// ═══════════════════════════════════════════════════════════════
+
+// CSSTextStyle represents CSS text properties for text layout.
+type CSSTextStyle struct {
+	// White space handling
+	WhiteSpace WhiteSpace
+
+	// Text transformation
+	TextTransform TextTransform
+
+	// Word and line breaking
+	WordBreak    WordBreak
+	LineBreak    LineBreak
+	OverflowWrap OverflowWrap
+	Hyphens      Hyphens
+
+	// Text overflow (CSS Overflow Module)
+	// https://drafts.csswg.org/css-overflow/#text-overflow
+	TextOverflow      TextOverflow // How to handle overflow (applies to both ends if TextOverflowEnd not set)
+	TextOverflowEnd   TextOverflow // How to handle overflow at end (if different from start)
+	TextOverflowClipString string  // Custom string for clip mode
+	TextOverflowEllipsisString string // Custom ellipsis string (default: "...")
+
+	// Spacing (using CSS length units)
+	LetterSpacing units.Length // Additional spacing between characters
+	WordSpacing   units.Length // Additional spacing between words
+
+	// Indentation and alignment
+	TextIndent    TextIndent // First line indentation (supports hanging, each-line)
+	TextAlign     Alignment  // Horizontal alignment
+	TextAlignLast Alignment  // Alignment of last line (justify becomes start)
+	VerticalAlign Alignment  // Vertical alignment within line box
+	Direction     Direction  // Text direction (LTR, RTL, Auto)
+
+	// Hanging punctuation (CSS Text Level 3 §6)
+	HangingPunctuation HangingPunctuation // Controls punctuation hanging outside line box
+
+	// Text spacing trim (CSS Text Level 4)
+	TextSpacingTrim TextSpacingTrim // Controls CJK spacing trimming
+}
+
+// DefaultCSSTextStyle returns a CSSTextStyle with default values matching CSS defaults.
+func DefaultCSSTextStyle() CSSTextStyle {
+	return CSSTextStyle{
+		WhiteSpace:             WhiteSpaceNormal,
+		TextTransform:          TextTransformNone,
+		WordBreak:              WordBreakNormal,
+		LineBreak:              LineBreakAuto,
+		OverflowWrap:           OverflowWrapNormal,
+		Hyphens:                HyphensManual,
+		TextOverflow:           TextOverflowClip,
+		TextOverflowEllipsisString: "...",
+		LetterSpacing:          units.Px(0),
+		WordSpacing:            units.Px(0),
+		TextIndent:             DefaultTextIndent(),
+		TextAlign:              AlignLeft,
+		TextAlignLast:          AlignLeft,
+		VerticalAlign:          AlignLeft,
+		Direction:              DirectionLTR,
+		HangingPunctuation:     HangingPunctuationNone,
+		TextSpacingTrim:        TextSpacingTrimNone,
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  White Space Processing Implementation
+// ═══════════════════════════════════════════════════════════════
+
+// ProcessWhiteSpace processes text according to CSS white-space property.
+// Returns the processed text and whether line wrapping is allowed.
+func (t *Text) ProcessWhiteSpace(text string, whiteSpace WhiteSpace) (processed string, allowWrap bool) {
+	switch whiteSpace {
+	case WhiteSpaceNormal:
+		return t.collapseWhiteSpace(text, true), true
+
+	case WhiteSpacePre:
+		return text, false
+
+	case WhiteSpaceNoWrap:
+		return t.collapseWhiteSpace(text, true), false
+
+	case WhiteSpacePreWrap:
+		return text, true
+
+	case WhiteSpacePreLine:
+		return t.collapseWhiteSpace(text, false), true
+
+	case WhiteSpaceBreakSpaces:
+		return text, true
+
+	default:
+		return text, true
+	}
+}
+
+// collapseWhiteSpace collapses sequences of white space into single spaces.
+// If collapseNewlines is true, newlines are treated as spaces.
+func (t *Text) collapseWhiteSpace(text string, collapseNewlines bool) string {
+	var result strings.Builder
+	result.Grow(len(text))
+
+	inSpace := false
+	for _, r := range text {
+		isSpace := unicode.IsSpace(r)
+		isNewline := r == '\n' || r == '\r'
+
+		if isNewline && !collapseNewlines {
+			result.WriteRune('\n')
+			inSpace = false
+			continue
+		}
+
+		if isSpace {
+			if !inSpace {
+				result.WriteRune(' ')
+				inSpace = true
+			}
+			continue
+		}
+
+		result.WriteRune(r)
+		inSpace = false
+	}
+
+	return strings.TrimSpace(result.String())
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Transformation Implementation
+// ═══════════════════════════════════════════════════════════════
+
+// Transform applies text transformation according to CSS text-transform property.
+func (t *Text) Transform(text string, transform TextTransform) string {
+	switch transform {
+	case TextTransformNone:
+		return text
+
+	case TextTransformUppercase:
+		return strings.ToUpper(text)
+
+	case TextTransformLowercase:
+		return strings.ToLower(text)
+
+	case TextTransformCapitalize:
+		return t.capitalize(text)
+
+	case TextTransformFullWidth:
+		return t.toFullWidth(text)
+
+	case TextTransformFullSizeKana:
+		return t.toFullSizeKana(text)
+
+	default:
+		return text
+	}
+}
+
+// capitalize capitalizes the first letter of each word.
+func (t *Text) capitalize(text string) string {
+	// Use UAX #29 word boundaries for proper capitalization
+	words := uax29.Words(text)
+	var result strings.Builder
+	result.Grow(len(text))
+
+	for _, word := range words {
+		if len(word) == 0 {
+			continue
+		}
+
+		// Check if this is a word (not punctuation or whitespace)
+		firstRune := []rune(word)[0]
+		if unicode.IsLetter(firstRune) {
+			runes := []rune(word)
+			runes[0] = unicode.ToUpper(runes[0])
+			result.WriteString(string(runes))
+		} else {
+			result.WriteString(word)
+		}
+	}
+
+	return result.String()
+}
+
+// toFullWidth converts ASCII characters to their fullwidth forms.
+func (t *Text) toFullWidth(text string) string {
+	var result strings.Builder
+	result.Grow(len(text) * 2) // Fullwidth characters are larger in bytes
+
+	for _, r := range text {
+		// ASCII range: U+0021-U+007E -> Fullwidth: U+FF01-U+FF5E
+		if r >= 0x21 && r <= 0x7E {
+			result.WriteRune(r - 0x21 + 0xFF01)
+		} else if r == 0x20 { // Space -> Fullwidth space
+			result.WriteRune(0x3000)
+		} else {
+			result.WriteRune(r)
+		}
+	}
+
+	return result.String()
+}
+
+// toFullSizeKana converts small kana to full-size equivalents.
+func (t *Text) toFullSizeKana(text string) string {
+	// Map of small kana to full-size kana
+	smallToFull := map[rune]rune{
+		'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
+		'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ', 'ゎ': 'わ',
+		'ァ': 'ア', 'ィ': 'イ', 'ゥ': 'ウ', 'ェ': 'エ', 'ォ': 'オ',
+		'ャ': 'ヤ', 'ュ': 'ユ', 'ョ': 'ヨ', 'ヮ': 'ワ',
+		'っ': 'つ', 'ッ': 'ツ',
+	}
+
+	var result strings.Builder
+	result.Grow(len(text))
+
+	for _, r := range text {
+		if full, ok := smallToFull[r]; ok {
+			result.WriteRune(full)
+		} else {
+			result.WriteRune(r)
+		}
+	}
+
+	return result.String()
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Word Boundary Support
+// ═══════════════════════════════════════════════════════════════
+
+// Words splits text into words using UAX #29 word boundaries.
+// Returns a slice of word segments (includes spaces and punctuation).
+func (t *Text) Words(text string) []string {
+	return uax29.Words(text)
+}
+
+// WordCount returns the number of words in the text.
+func (t *Text) WordCount(text string) int {
+	words := uax29.Words(text)
+	count := 0
+	for _, word := range words {
+		// Only count actual words (not whitespace or punctuation)
+		if len(word) > 0 {
+			firstRune := []rune(word)[0]
+			if unicode.IsLetter(firstRune) || unicode.IsNumber(firstRune) {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Sentence Boundary Support
+// ═══════════════════════════════════════════════════════════════
+
+// Sentences splits text into sentences using UAX #29 sentence boundaries.
+func (t *Text) Sentences(text string) []string {
+	return uax29.Sentences(text)
+}
+
+// SentenceCount returns the number of sentences in the text.
+func (t *Text) SentenceCount(text string) int {
+	return len(uax29.Sentences(text))
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Advanced Wrapping with CSS Text Properties
+// ═══════════════════════════════════════════════════════════════
+
+// CSSWrapOptions extends WrapOptions with CSS text properties.
+type CSSWrapOptions struct {
+	MaxWidth units.Length
+	Style    CSSTextStyle
+}
+
+// WrapCSS wraps text according to CSS text properties.
+// This is a more sophisticated version of Wrap that handles white-space,
+// word-break, line-break, and other CSS properties.
+func (t *Text) WrapCSS(text string, opts CSSWrapOptions) []Line {
+	// Process white space first
+	processed, allowWrap := t.ProcessWhiteSpace(text, opts.Style.WhiteSpace)
+
+	if !allowWrap {
+		// No wrapping allowed
+		return []Line{{
+			Content: processed,
+			Width:   t.Width(processed),
+			Start:   0,
+			End:     len([]rune(processed)),
+		}}
+	}
+
+	// Apply text transformation
+	processed = t.Transform(processed, opts.Style.TextTransform)
+
+	// Apply text spacing trim (CJK spacing)
+	if opts.Style.TextSpacingTrim != TextSpacingTrimNone {
+		processed = t.TrimCJKSpacing(processed, opts.Style.TextSpacingTrim)
+	}
+
+	// Convert CSS properties to UAX #14 line breaking options
+	hyphenMode := uax14.HyphensManual
+	switch opts.Style.Hyphens {
+	case HyphensNone:
+		hyphenMode = uax14.HyphensNone
+	case HyphensManual:
+		hyphenMode = uax14.HyphensManual
+	case HyphensAuto:
+		hyphenMode = uax14.HyphensAuto
+	}
+
+	// Find line break opportunities using UAX #14
+	breakPoints := uax14.FindLineBreakOpportunities(processed, hyphenMode)
+
+	// Build lines using break opportunities
+	return t.buildLinesFromBreakPoints(processed, breakPoints, opts)
+}
+
+// buildLinesFromBreakPoints creates lines from UAX #14 break points.
+func (t *Text) buildLinesFromBreakPoints(text string, breakPoints []int, opts CSSWrapOptions) []Line {
+	if len(breakPoints) == 0 {
+		return []Line{{
+			Content: text,
+			Width:   t.Width(text),
+			Start:   0,
+			End:     len([]rune(text)),
+		}}
+	}
+
+	var lines []Line
+	maxWidth := opts.MaxWidth.Raw()
+
+	// Accumulate segments until line is full
+	currentLine := ""
+	currentWidth := 0.0
+	lineStartIdx := 0
+
+	for i := 1; i < len(breakPoints); i++ {
+		segment := text[breakPoints[i-1]:breakPoints[i]]
+
+		// Calculate what the line would be if we add this segment
+		testLine := currentLine + segment
+		testWidth := t.Width(testLine)
+
+		// Apply letter spacing
+		if !opts.Style.LetterSpacing.IsZero() {
+			graphemes := t.Graphemes(testLine)
+			testWidth += float64(len(graphemes)-1) * opts.Style.LetterSpacing.Raw()
+		}
+
+		// Apply word spacing
+		if !opts.Style.WordSpacing.IsZero() {
+			spaceCount := strings.Count(testLine, " ")
+			testWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
+		}
+
+		// Apply hanging punctuation - reduces effective width
+		effectiveWidth := t.calculateEffectiveWidth(testLine, testWidth, opts.Style.HangingPunctuation)
+
+		// Check if adding this segment would exceed maxWidth
+		if effectiveWidth > maxWidth && currentLine != "" {
+			// Line is full, commit current line
+			lines = append(lines, Line{
+				Content: currentLine,
+				Width:   currentWidth,
+				Start:   lineStartIdx,
+				End:     lineStartIdx + len([]rune(currentLine)),
+			})
+
+			// Start new line with this segment
+			currentLine = segment
+			currentWidth = t.Width(segment)
+
+			// Apply spacing for new line
+			if !opts.Style.LetterSpacing.IsZero() {
+				graphemes := t.Graphemes(currentLine)
+				currentWidth += float64(len(graphemes)-1) * opts.Style.LetterSpacing.Raw()
+			}
+			if !opts.Style.WordSpacing.IsZero() {
+				spaceCount := strings.Count(currentLine, " ")
+				currentWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
+			}
+
+			lineStartIdx += len([]rune(currentLine))
+		} else {
+			// Add segment to current line
+			currentLine = testLine
+			currentWidth = testWidth
+		}
+	}
+
+	// Add final line if any content remains
+	if currentLine != "" {
+		lines = append(lines, Line{
+			Content: currentLine,
+			Width:   currentWidth,
+			Start:   lineStartIdx,
+			End:     lineStartIdx + len([]rune(currentLine)),
+		})
+	}
+
+	return lines
+}
+
+// calculateEffectiveWidth returns the effective width of text accounting for hanging punctuation.
+// Hanging punctuation reduces the effective width because it hangs outside the line box.
+func (t *Text) calculateEffectiveWidth(text string, baseWidth float64, mode HangingPunctuation) float64 {
+	if mode == HangingPunctuationNone || len(text) == 0 {
+		return baseWidth
+	}
+
+	runes := []rune(text)
+	effectiveWidth := baseWidth
+
+	// Check first character
+	if len(runes) > 0 {
+		shouldHang, hangWidth := t.ShouldHang(text, 0, mode)
+		if shouldHang {
+			effectiveWidth -= hangWidth
+		}
+	}
+
+	// Check last character
+	if len(runes) > 0 {
+		shouldHang, hangWidth := t.ShouldHang(text, len(runes)-1, mode)
+		if shouldHang {
+			effectiveWidth -= hangWidth
+		}
+	}
+
+	return effectiveWidth
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Overflow Implementation (CSS Overflow Module)
+// ═══════════════════════════════════════════════════════════════
+
+// ApplyTextOverflow applies CSS text-overflow property to text that exceeds maxWidth.
+//
+// Based on CSS Overflow Module Level 3 §3:
+// https://drafts.csswg.org/css-overflow/#text-overflow
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	result := txt.ApplyTextOverflow("Very long text here", 15, text.CSSTextStyle{
+//	    TextOverflow: text.TextOverflowEllipsis,
+//	    TextOverflowEllipsisString: "…",
+//	})
+//	// Returns: "Very long t…"
+func (t *Text) ApplyTextOverflow(text string, maxWidth float64, style CSSTextStyle) string {
+	currentWidth := t.Width(text)
+
+	// No overflow, return as-is
+	if currentWidth <= maxWidth {
+		return text
+	}
+
+	// Determine overflow mode (use TextOverflow for both ends if TextOverflowEnd not set)
+	overflowMode := style.TextOverflow
+	if style.TextOverflowEnd != TextOverflowClip {
+		// If end mode is set differently, use it for end truncation
+		overflowMode = style.TextOverflowEnd
+	}
+
+	switch overflowMode {
+	case TextOverflowClip:
+		// Just clip at maxWidth (no indicator)
+		return t.clipAtWidth(text, maxWidth)
+
+	case TextOverflowEllipsis:
+		// Add ellipsis
+		ellipsis := style.TextOverflowEllipsisString
+		if ellipsis == "" {
+			ellipsis = "..."
+		}
+		return t.Truncate(text, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateEnd,
+			Ellipsis: ellipsis,
+		})
+
+	case TextOverflowString:
+		// Use custom overflow string
+		clipString := style.TextOverflowClipString
+		if clipString == "" {
+			clipString = "..."
+		}
+		return t.Truncate(text, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateEnd,
+			Ellipsis: clipString,
+		})
+
+	case TextOverflowFade:
+		// Fade is not widely supported, fallback to ellipsis
+		ellipsis := style.TextOverflowEllipsisString
+		if ellipsis == "" {
+			ellipsis = "..."
+		}
+		return t.Truncate(text, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateEnd,
+			Ellipsis: ellipsis,
+		})
+
+	default:
+		return t.clipAtWidth(text, maxWidth)
+	}
+}
+
+// clipAtWidth clips text at the exact width without any indicator.
+func (t *Text) clipAtWidth(text string, maxWidth float64) string {
+	graphemes := t.Graphemes(text)
+	result := ""
+	width := 0.0
+
+	for _, g := range graphemes {
+		gWidth := t.Width(g)
+		if width+gWidth > maxWidth {
+			break
+		}
+		result += g
+		width += gWidth
+	}
+
+	return result
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Text Alignment with CSS Support
+// ═══════════════════════════════════════════════════════════════
+
+// AlignLines aligns multiple lines according to CSS text-align and text-align-last properties.
+//
+// Based on CSS Text Module Level 3:
+// - text-align: https://www.w3.org/TR/css-text-3/#text-align-property
+// - text-align-last: https://www.w3.org/TR/css-text-3/#text-align-last-property
+//
+// Example:
+//
+//	lines := []Line{
+//	    {Content: "First line", Width: 10},
+//	    {Content: "Second line", Width: 11},
+//	    {Content: "Last", Width: 4},
+//	}
+//	aligned := txt.AlignLines(lines, 20.0, text.CSSTextStyle{
+//	    TextAlign:     text.AlignJustify,
+//	    TextAlignLast: text.AlignLeft,
+//	})
+func (t *Text) AlignLines(lines []Line, width float64, style CSSTextStyle) []Line {
+	if len(lines) == 0 {
+		return lines
+	}
+
+	result := make([]Line, len(lines))
+	copy(result, lines)
+
+	for i := range result {
+		isLastLine := (i == len(result)-1)
+
+		// Determine which alignment to use
+		align := style.TextAlign
+		if isLastLine && style.TextAlignLast != AlignLeft {
+			// Use text-align-last for the last line
+			// If text-align-last is not set (AlignLeft is default), use text-align
+			align = style.TextAlignLast
+
+			// Special handling: if text-align is justify but last line uses default,
+			// the last line should use start alignment (left in LTR)
+			if style.TextAlign == AlignJustify && style.TextAlignLast == AlignLeft {
+				align = AlignLeft
+			}
+		}
+
+		// Apply alignment with direction support
+		result[i].Content = t.AlignWithDirection(result[i].Content, width, align, style.Direction, style.TextAlign)
+		result[i].Width = width
+	}
+
+	return result
+}
