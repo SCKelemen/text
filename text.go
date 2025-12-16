@@ -498,6 +498,12 @@ func (t *Text) truncateStart(graphemes []string, targetWidth float64, ellipsis s
 // ═══════════════════════════════════════════════════════════════
 
 // Alignment specifies text alignment.
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#text-align-property
+//   - CSS Text Level 3 (text-align-last): https://www.w3.org/TR/css-text-3/#text-align-last-property
+//   - MDN text-align: https://developer.mozilla.org/en-US/docs/Web/CSS/text-align
+//   - MDN text-align-last: https://developer.mozilla.org/en-US/docs/Web/CSS/text-align-last
 type Alignment int
 
 const (

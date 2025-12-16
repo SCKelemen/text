@@ -10,14 +10,24 @@ import (
 )
 
 // CSS Text Module Level 3/4 Implementation
-// Based on: https://www.w3.org/TR/css-text-3/ and https://www.w3.org/TR/css-text-4/
+//
+// This package implements the CSS Text Module specifications:
+//   - CSS Text Module Level 3: https://www.w3.org/TR/css-text-3/
+//   - CSS Text Module Level 4: https://www.w3.org/TR/css-text-4/
+//
+// Additional resources:
+//   - MDN CSS Text: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_text
+//   - web.dev Typography: https://web.dev/learn/css/typography
 
 // ═══════════════════════════════════════════════════════════════
 //  White Space Processing (CSS Text §4)
 // ═══════════════════════════════════════════════════════════════
 
 // WhiteSpace controls how white space is handled inside an element.
-// Based on CSS Text Module Level 3 §4: https://www.w3.org/TR/css-text-3/#white-space-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#white-space-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
 type WhiteSpace int
 
 const (
@@ -47,7 +57,10 @@ const (
 // ═══════════════════════════════════════════════════════════════
 
 // TextTransform controls case transformation of text.
-// Based on CSS Text Module Level 3 §2: https://www.w3.org/TR/css-text-3/#text-transform-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#text-transform-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-transform
 type TextTransform int
 
 const (
@@ -76,7 +89,10 @@ const (
 // ═══════════════════════════════════════════════════════════════
 
 // WordBreak controls word breaking rules for CJK and other scripts.
-// Based on CSS Text Module Level 3 §5.2: https://www.w3.org/TR/css-text-3/#word-break-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#word-break-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/word-break
 type WordBreak int
 
 const (
@@ -100,7 +116,10 @@ const (
 // ═══════════════════════════════════════════════════════════════
 
 // LineBreak controls line breaking strictness for CJK text.
-// Based on CSS Text Module Level 3 §5.3: https://www.w3.org/TR/css-text-3/#line-break-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#line-break-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/line-break
 type LineBreak int
 
 const (
@@ -127,7 +146,10 @@ const (
 // ═══════════════════════════════════════════════════════════════
 
 // OverflowWrap controls whether to break within words to prevent overflow.
-// Based on CSS Text Module Level 3 §5.5: https://www.w3.org/TR/css-text-3/#overflow-wrap-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#overflow-wrap-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-wrap
 type OverflowWrap int
 
 const (
@@ -146,7 +168,10 @@ const (
 // ═══════════════════════════════════════════════════════════════
 
 // Hyphens controls hyphenation behavior.
-// Based on CSS Text Module Level 3 §4.3: https://www.w3.org/TR/css-text-3/#hyphenation
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#hyphenation
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/hyphens
 type Hyphens int
 
 const (

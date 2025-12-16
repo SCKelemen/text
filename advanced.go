@@ -9,21 +9,34 @@ import (
 
 // Advanced CSS Text Module Features
 //
-// Implements CSS Text Level 3/4 advanced features:
-// - text-justify
-// - hanging-punctuation
-// - tab-size
-// - text-wrap
-// - text-spacing-trim
-// - wrap-before/wrap-after
+// This file implements advanced CSS Text Level 3/4 features:
+//   - text-justify (Level 3)
+//   - hanging-punctuation (Level 3)
+//   - tab-size (Level 3)
+//   - text-wrap (Level 4)
+//   - text-spacing-trim (Level 4)
+//   - text-autospace (Level 4)
+//   - wrap-before/wrap-after (Level 4)
+//   - word-break: auto-phrase (Level 4)
+//
+// Specifications:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/
+//
+// Additional resources:
+//   - MDN CSS Text: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_text
+//   - web.dev Typography: https://web.dev/learn/css/typography
+//   - web.dev CJK: https://web.dev/learn/css/typography/#line-breaking
 
 // ═══════════════════════════════════════════════════════════════
 //  Text Justify (CSS Text §8)
 // ═══════════════════════════════════════════════════════════════
 
 // TextJustify specifies the justification method.
-// Based on CSS Text Module Level 3 §8.2:
-// https://www.w3.org/TR/css-text-3/#text-justify-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#text-justify-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-justify
 type TextJustify int
 
 const (
@@ -127,8 +140,10 @@ func (t *Text) justifyInterCharacter(text string, extraSpace float64) string {
 // ═══════════════════════════════════════════════════════════════
 
 // HangingPunctuation controls whether punctuation can hang outside the line box.
-// Based on CSS Text Module Level 3 §6:
-// https://www.w3.org/TR/css-text-3/#hanging-punctuation-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#hanging-punctuation-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/hanging-punctuation
 type HangingPunctuation int
 
 const (
@@ -227,8 +242,10 @@ func (t *Text) ShouldHang(text string, position int, mode HangingPunctuation) (s
 // ═══════════════════════════════════════════════════════════════
 
 // TabSize controls the width of tab characters.
-// Based on CSS Text Module Level 3 §7:
-// https://www.w3.org/TR/css-text-3/#tab-size-property
+//
+// Specification:
+//   - CSS Text Level 3: https://www.w3.org/TR/css-text-3/#tab-size-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/tab-size
 type TabSize struct {
 	// Value is the tab width
 	Value float64
@@ -301,8 +318,11 @@ func (t *Text) ExpandTabs(text string, tabSize TabSize) string {
 // ═══════════════════════════════════════════════════════════════
 
 // TextWrap controls advanced text wrapping strategies.
-// Based on CSS Text Module Level 4:
-// https://www.w3.org/TR/css-text-4/#text-wrap-property
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#text-wrap-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap
+//   - web.dev Balance Text: https://web.dev/articles/css-text-wrap-balance
 type TextWrap int
 
 const (
@@ -434,8 +454,10 @@ func (t *Text) WrapPretty(text string, maxWidth float64) []Line {
 // ═══════════════════════════════════════════════════════════════
 
 // TextSpacingTrim controls trimming of CJK spacing.
-// Based on CSS Text Module Level 4:
-// https://www.w3.org/TR/css-text-4/#text-spacing-trim-property
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#text-spacing-trim-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-spacing-trim
 type TextSpacingTrim int
 
 const (
@@ -500,10 +522,16 @@ func (t *Text) TrimCJKSpacing(text string, mode TextSpacingTrim) string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Wrap Before/After Controls
+//  Wrap Before/After Controls (CSS Text Level 4)
 // ═══════════════════════════════════════════════════════════════
 
 // WrapControl specifies wrap behavior before/after an element.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#wrap-before
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#wrap-after
+//   - MDN wrap-before: https://developer.mozilla.org/en-US/docs/Web/CSS/wrap-before
+//   - MDN wrap-after: https://developer.mozilla.org/en-US/docs/Web/CSS/wrap-after
 type WrapControl int
 
 const (
@@ -697,8 +725,10 @@ func (t *Text) buildLinesFromBreaks(text string, breakPoints []int, maxWidth flo
 // ═══════════════════════════════════════════════════════════════
 
 // TextAutospace controls automatic spacing around ideographic characters.
-// Based on CSS Text Module Level 4:
-// https://www.w3.org/TR/css-text-4/#text-autospace-property
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#text-autospace-property
+//   - MDN: https://developer.mozilla.org/en-US/docs/Web/CSS/text-autospace
 type TextAutospace int
 
 const (
@@ -898,6 +928,11 @@ func (t *Text) ApplyAutospaceMode(text string, mode TextAutospace) string {
 //
 // This enables word-break: auto-phrase for CJK languages by allowing users
 // to provide their own dictionary/ML-based segmentation.
+//
+// Specification:
+//   - CSS Text Level 4: https://www.w3.org/TR/css-text-4/#word-break-property
+//   - MDN word-break: https://developer.mozilla.org/en-US/docs/Web/CSS/word-break
+//   - web.dev CJK Breaking: https://web.dev/learn/css/typography/#line-breaking
 //
 // Users should integrate external libraries for phrase breaking:
 //   - Chinese: jieba, pkuseg, HanLP
