@@ -90,7 +90,7 @@ type Config struct {
 	AmbiguousAsWide bool
 
 	// HyphenationMode specifies UAX #14 line breaking preferences.
-	HyphenationMode uax14.HyphenMode
+	HyphenationMode uax14.Hyphens
 
 	// BaseDirection specifies the default paragraph direction for UAX #9.
 	BaseDirection uax9.Direction
@@ -213,19 +213,19 @@ func (t *Text) WidthRange(s string, start, end int) float64 {
 // Returns:
 //   - 2 for wide characters (CJK ideographs, fullwidth, emoji)
 //   - 1 for narrow characters (ASCII, halfwidth)
-//   - 0 for zero-width characters (combining marks, ZWJ, variation selectors)
+//   - 0 for zero-width characters (combining marks, ZWJ, variation selectors, emoji modifiers)
 //
 // Uses UAX #11 with ContextNarrow (ambiguous characters treated as narrow).
+// UTS #51 takes precedence for emoji characters.
 func TerminalMeasure(r rune) float64 {
-	// Use UAX #11 for base width
-	w := uax11.CharWidth(r, uax11.ContextNarrow)
-
-	// Override with emoji width (UTS #51 takes precedence)
-	if emojiW := uts51.EmojiWidth(r); emojiW > 0 {
-		w = emojiW
+	// Check if this is an emoji character (has emoji properties)
+	// UTS #51 takes precedence over UAX #11 for emoji
+	if uts51.IsEmoji(r) || uts51.IsEmojiComponent(r) {
+		return float64(uts51.EmojiWidth(r))
 	}
 
-	return float64(w)
+	// Use UAX #11 for non-emoji characters
+	return float64(uax11.CharWidth(r, uax11.ContextNarrow))
 }
 
 // TerminalMeasureEastAsian measures characters in terminal cells with East Asian context.
@@ -233,15 +233,14 @@ func TerminalMeasure(r rune) float64 {
 // Same as TerminalMeasure but treats ambiguous characters as wide (2 cells).
 // Use this for terminals with East Asian locales (Chinese, Japanese, Korean).
 func TerminalMeasureEastAsian(r rune) float64 {
-	// Use UAX #11 with East Asian context
-	w := uax11.CharWidth(r, uax11.ContextEastAsian)
-
-	// Override with emoji width (UTS #51 takes precedence)
-	if emojiW := uts51.EmojiWidth(r); emojiW > 0 {
-		w = emojiW
+	// Check if this is an emoji character (has emoji properties)
+	// UTS #51 takes precedence over UAX #11 for emoji
+	if uts51.IsEmoji(r) || uts51.IsEmojiComponent(r) {
+		return float64(uts51.EmojiWidth(r))
 	}
 
-	return float64(w)
+	// Use UAX #11 with East Asian context for non-emoji characters
+	return float64(uax11.CharWidth(r, uax11.ContextEastAsian))
 }
 
 // ═══════════════════════════════════════════════════════════════
