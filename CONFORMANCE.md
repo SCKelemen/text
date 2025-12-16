@@ -111,16 +111,6 @@ GitHub Actions automatically runs all tests on:
 
 See `.github/workflows/ci.yml` for configuration.
 
-## Contributing Tests
-
-If you'd like to add more tests:
-
-1. **Unit Tests**: Add tests for specific CSS properties or text operations
-2. **Integration Tests**: Test combinations of properties and real-world scenarios
-3. **Edge Cases**: Test unusual input (empty strings, very long text, mixed scripts)
-4. **Benchmarks**: Add performance benchmarks for critical paths
-5. **Document**: Update this file with any new conformance-related tests
-
 ## Conformance vs. Practical Implementation
 
 This library prioritizes **practical text layout** over 100% conformance in some cases:
@@ -158,4 +148,6 @@ This library prioritizes **practical text layout** over 100% conformance in some
 
 ## License
 
-Conformance test data from Unicode Consortium and W3C are under their respective licenses. See individual test files for license information.
+This software is licensed under the BearWare 1.0 License (MIT-compatible).
+
+See the LICENSE file for full text.
