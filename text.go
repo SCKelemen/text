@@ -164,6 +164,7 @@ func NewTerminalEastAsian() *Text {
 // This correctly handles:
 //   - CJK characters (2 cells/units wide)
 //   - Emoji (2 cells/units wide)
+//   - Emoji sequences (flags, ZWJ sequences, modifiers - all 2 cells wide)
 //   - Combining marks (0 width)
 //   - Zero-width joiners (0 width)
 //
@@ -173,12 +174,39 @@ func NewTerminalEastAsian() *Text {
 //	width := txt.Width("Hello")     // 5.0 cells
 //	width = txt.Width("Hello 世界")  // 9.0 cells (5 + 1 space + 2 + 2)
 //	width = txt.Width("👋🏻")        // 2.0 cells (emoji + skin tone modifier)
+//	width = txt.Width("🇺🇸")        // 2.0 cells (flag emoji)
 func (t *Text) Width(s string) float64 {
+	// Use grapheme clusters for correct emoji sequence handling
+	graphemes := uax29.Graphemes(s)
 	width := 0.0
-	for _, r := range s {
-		width += t.config.MeasureFunc(r)
+	for _, g := range graphemes {
+		width += t.graphemeWidth(g)
 	}
 	return width
+}
+
+// graphemeWidth measures the width of a single grapheme cluster.
+func (t *Text) graphemeWidth(g string) float64 {
+	// For grapheme clusters with multiple runes, check if it's an emoji sequence
+	runes := []rune(g)
+	if len(runes) > 1 {
+		// Check for emoji sequences (flags, ZWJ sequences, modifiers, etc.)
+		// These should all be width 2 for terminal rendering
+		if uts51.IsValidEmojiSequence(runes) {
+			return 2.0
+		}
+
+		// For non-emoji multi-rune graphemes (combining marks),
+		// only measure the base character (first rune)
+		return t.config.MeasureFunc(runes[0])
+	}
+
+	// Single rune grapheme - use normal measurement
+	if len(runes) == 1 {
+		return t.config.MeasureFunc(runes[0])
+	}
+
+	return 0.0
 }
 
 // WidthRange measures the display width of a substring by rune indices.
