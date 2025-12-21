@@ -144,9 +144,12 @@ func (d *EnglishDictionary) IsAbbreviation(word string) bool {
 
 // GetHyphenationPoints implements DictionaryProvider.
 // Returns empty slice for now - hyphenation requires more complex rules.
+//
+// Future enhancement: Implement Liang's TeX hyphenation algorithm with
+// language-specific pattern dictionaries.
 func (d *EnglishDictionary) GetHyphenationPoints(word string) []int {
-	// TODO: Implement hyphenation algorithm (e.g., Liang's algorithm)
-	// For now, return no hyphenation points
+	// Placeholder - returns no hyphenation points
+	// Hyphenation currently only works with manually-inserted soft hyphens (U+00AD)
 	return nil
 }
 

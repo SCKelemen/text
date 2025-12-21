@@ -365,8 +365,11 @@ type FontMetrics interface {
 //
 // When provided, font metrics override the default ascent/descent calculations.
 // This enables proper support for font-relative units (em, ex, cap, ch, ic).
+//
+// Future enhancement: Store and use font metrics in line box measurement for
+// pixel-perfect canvas/GUI rendering with proper baseline alignment.
 func (t *Text) WithFontMetrics(fm FontMetrics) *Text {
-	// TODO: Store font metrics and use in MeasureLineBox
-	// For now, just return the text instance unchanged
+	// Placeholder - font metrics not yet stored
+	// Current implementation uses basic cell-based sizing suitable for terminals
 	return t
 }

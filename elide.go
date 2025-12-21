@@ -76,8 +76,9 @@ func (t *Text) ElideStart(text string, maxWidth float64) string {
 //	short := txt.ElidePath("/usr/local/share/applications/myapp.desktop", 30)
 //	// Returns: "/usr/.../applications/myapp.desktop"
 func (t *Text) ElidePath(path string, maxWidth float64) string {
-	// For now, just use middle elision
-	// TODO: Implement smarter path-aware elision
+	// Current implementation uses middle elision.
+	// Future enhancement: smart path-aware elision that preserves filenames and
+	// breaks at path separators.
 	return t.Elide(path, maxWidth)
 }
 
@@ -91,8 +92,9 @@ func (t *Text) ElidePath(path string, maxWidth float64) string {
 //	short := txt.ElideURL("https://example.com/very/long/path/to/resource", 35)
 //	// Returns: "https://example.com/.../resource"
 func (t *Text) ElideURL(url string, maxWidth float64) string {
-	// For now, just use middle elision
-	// TODO: Implement URL-aware elision that preserves domain
+	// Current implementation uses middle elision.
+	// Future enhancement: URL-aware elision that preserves protocol, domain,
+	// and important path segments.
 	return t.Elide(url, maxWidth)
 }
 
