@@ -245,3 +245,156 @@ func BenchmarkWrap(b *testing.B) {
 		})
 	}
 }
+
+func TestWidthRange(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name     string
+		text     string
+		start    int
+		end      int
+		expected float64
+	}{
+		{"ASCII range", "Hello world", 0, 5, 5.0},
+		{"Middle range", "Hello world", 6, 11, 5.0},
+		{"Empty range", "Hello world", 5, 5, 0.0},
+		{"CJK range", "Hello世界!", 5, 7, 4.0}, // 世界 = 4 cells
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			width := txt.WidthRange(tt.text, tt.start, tt.end)
+			if width != tt.expected {
+				t.Errorf("WidthRange(%q, %d, %d) = %.1f, want %.1f",
+					tt.text, tt.start, tt.end, width, tt.expected)
+			}
+		})
+	}
+}
+
+func TestTerminalMeasureEastAsian(t *testing.T) {
+	// Test East Asian context where ambiguous characters are wide
+	tests := []struct {
+		name     string
+		char     rune
+		expected float64
+	}{
+		{"ASCII", 'A', 1.0},
+		{"CJK", '世', 2.0},
+		{"Emoji", '😀', 2.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			width := TerminalMeasureEastAsian(tt.char)
+			if width != tt.expected {
+				t.Errorf("TerminalMeasureEastAsian(%q) = %.1f, want %.1f",
+					tt.char, width, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGraphemeCount(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name     string
+		text     string
+		expected int
+	}{
+		{"ASCII", "Hello", 5},
+		{"CJK", "世界", 2},
+		{"Emoji with modifier", "👋🏻", 1},
+		{"Mixed", "Hello👋", 6},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			count := txt.GraphemeCount(tt.text)
+			if count != tt.expected {
+				t.Errorf("GraphemeCount(%q) = %d, want %d",
+					tt.text, count, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGraphemeAt(t *testing.T) {
+	txt := NewTerminal()
+	text := "Hello👋🏻"
+
+	tests := []struct {
+		name     string
+		index    int
+		expected string
+	}{
+		{"First char", 0, "H"},
+		{"Middle char", 2, "l"},
+		{"Emoji", 5, "👋🏻"},
+		{"Out of range", 10, ""},
+		{"Negative index", -1, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.GraphemeAt(text, tt.index)
+			if result != tt.expected {
+				t.Errorf("GraphemeAt(%q, %d) = %q, want %q",
+					text, tt.index, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestReorderWithDirection(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name      string
+		text      string
+		direction Direction
+	}{
+		{"LTR explicit", "Hello world", DirectionLTR},
+		{"RTL explicit", "שלום עולם", DirectionRTL},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Just verify it doesn't panic
+			result := txt.ReorderWithDirection(tt.text, toUAX9Direction(tt.direction))
+			if result == "" && tt.text != "" {
+				t.Errorf("ReorderWithDirection returned empty string")
+			}
+		})
+	}
+}
+
+func TestResolveAlignment(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name        string
+		align       Alignment
+		direction   Direction
+		parentAlign Alignment
+		expected    Alignment
+	}{
+		{"Start LTR", AlignStart, DirectionLTR, AlignLeft, AlignLeft},
+		{"Start RTL", AlignStart, DirectionRTL, AlignLeft, AlignRight},
+		{"End LTR", AlignEnd, DirectionLTR, AlignLeft, AlignRight},
+		{"End RTL", AlignEnd, DirectionRTL, AlignLeft, AlignLeft},
+		{"Match parent", AlignMatchParent, DirectionLTR, AlignCenter, AlignCenter},
+		{"Left unchanged", AlignLeft, DirectionLTR, AlignLeft, AlignLeft},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := txt.resolveAlignment(tt.align, tt.direction, tt.parentAlign)
+			if result != tt.expected {
+				t.Errorf("resolveAlignment() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
