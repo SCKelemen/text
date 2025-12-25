@@ -187,13 +187,13 @@ func (t *Text) Width(s string) float64 {
 
 // graphemeWidth measures the width of a single grapheme cluster.
 func (t *Text) graphemeWidth(g string) float64 {
-	// For grapheme clusters with multiple runes, check if it's an emoji sequence
 	runes := []rune(g)
+
+	// For grapheme clusters with multiple runes, check if it's an emoji sequence
 	if len(runes) > 1 {
-		// Check for emoji sequences (flags, ZWJ sequences, modifiers, etc.)
-		// These should all be width 2 for terminal rendering
-		if uts51.IsValidEmojiSequence(runes) {
-			return 2.0
+		// Use the unicode library's EmojiSequenceWidth for proper handling
+		if width := uts51.EmojiSequenceWidth(runes); width >= 0 {
+			return float64(width)
 		}
 
 		// For non-emoji multi-rune graphemes (combining marks),
