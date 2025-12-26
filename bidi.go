@@ -41,20 +41,6 @@ func toUAX9Direction(d Direction) uax9.Direction {
 	}
 }
 
-// fromUAX9Direction converts uax9.Direction to our Direction type.
-func fromUAX9Direction(d uax9.Direction) Direction {
-	switch d {
-	case uax9.DirectionLTR:
-		return DirectionLTR
-	case uax9.DirectionRTL:
-		return DirectionRTL
-	case uax9.DirectionAuto:
-		return DirectionAuto
-	default:
-		return DirectionLTR
-	}
-}
-
 // ═══════════════════════════════════════════════════════════════
 //  Paragraph-Level Reordering
 // ═══════════════════════════════════════════════════════════════

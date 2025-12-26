@@ -1,5 +1,3 @@
-github.com/SCKelemen/unicode v1.0.0 h1:p7AITeN2Qe6JH1RjTc0qIpHWO2R5G/J7dqU5qOHf2aI=
-github.com/SCKelemen/unicode v1.0.0/go.mod h1:lJ+vty4r9+3E9Agh2Nmmlfl3/AJKCyP3gWMx8BSdOl0=
 github.com/SCKelemen/unicode v1.0.1-0.20251225190048-233be2b0d647 h1:GO4BGxXWueTalxF+pwGvpoNxaPVN2CmdT2GrKhn+Ens=
 github.com/SCKelemen/unicode v1.0.1-0.20251225190048-233be2b0d647/go.mod h1:lJ+vty4r9+3E9Agh2Nmmlfl3/AJKCyP3gWMx8BSdOl0=
 github.com/SCKelemen/units v0.0.0-20251215145938-c61f55703fef h1:RQO33x712cY5sepDHL96slSt/spkeVkNkpxGEvWiX1w=
