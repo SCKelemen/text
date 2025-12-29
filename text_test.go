@@ -398,3 +398,136 @@ func TestResolveAlignment(t *testing.T) {
 		})
 	}
 }
+
+func TestWidthBytes(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name     string
+		bytes    []byte
+		expected float64
+	}{
+		{"ASCII bytes", []byte("Hello"), 5.0},
+		{"CJK bytes", []byte("世界"), 4.0},
+		{"Mixed bytes", []byte("Hello世界"), 9.0},
+		{"Emoji bytes", []byte("😀"), 2.0},
+		{"Empty bytes", []byte(""), 0.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := txt.WidthBytes(tt.bytes)
+			if got != tt.expected {
+				t.Errorf("WidthBytes(%q) = %.1f, want %.1f", tt.bytes, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestWidthUpTo(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name           string
+		text           string
+		maxWidth       float64
+		expectedWidth  float64
+		expectedExceed bool
+	}{
+		{
+			name:           "Within limit",
+			text:           "Hello",
+			maxWidth:       10.0,
+			expectedWidth:  5.0,
+			expectedExceed: false,
+		},
+		{
+			name:           "Exactly at limit",
+			text:           "Hello",
+			maxWidth:       5.0,
+			expectedWidth:  5.0,
+			expectedExceed: false,
+		},
+		{
+			name:           "Exceeds limit - stops early",
+			text:           "Hello world",
+			maxWidth:       8.0,
+			expectedWidth:  9.0, // Stops at "Hello wor" (9 chars) - returns width when exceeded
+			expectedExceed: true,
+		},
+		{
+			name:           "Empty text",
+			text:           "",
+			maxWidth:       10.0,
+			expectedWidth:  0.0,
+			expectedExceed: false,
+		},
+		{
+			name:           "CJK exceeds - stops early",
+			text:           "世界世界",
+			maxWidth:       5.0,
+			expectedWidth:  6.0, // Stops at "世界世" (6 cells) - returns width when exceeded
+			expectedExceed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			width, exceeded := txt.WidthUpTo(tt.text, tt.maxWidth)
+			if width != tt.expectedWidth {
+				t.Errorf("WidthUpTo(%q, %.1f) width = %.1f, want %.1f",
+					tt.text, tt.maxWidth, width, tt.expectedWidth)
+			}
+			if exceeded != tt.expectedExceed {
+				t.Errorf("WidthUpTo(%q, %.1f) exceeded = %v, want %v",
+					tt.text, tt.maxWidth, exceeded, tt.expectedExceed)
+			}
+		})
+	}
+}
+
+func TestWidthMany(t *testing.T) {
+	txt := NewTerminal()
+
+	tests := []struct {
+		name     string
+		strings  []string
+		expected []float64
+	}{
+		{
+			name:     "Mixed strings",
+			strings:  []string{"Hello", "世界", "Test"},
+			expected: []float64{5.0, 4.0, 4.0},
+		},
+		{
+			name:     "Empty slice",
+			strings:  []string{},
+			expected: []float64{},
+		},
+		{
+			name:     "Single string",
+			strings:  []string{"Hello"},
+			expected: []float64{5.0},
+		},
+		{
+			name:     "With emoji",
+			strings:  []string{"😀", "Hi😀", "世界"},
+			expected: []float64{2.0, 4.0, 4.0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := txt.WidthMany(tt.strings)
+			if len(got) != len(tt.expected) {
+				t.Errorf("WidthMany() returned %d widths, want %d", len(got), len(tt.expected))
+				return
+			}
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("WidthMany()[%d] = %.1f, want %.1f", i, got[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}

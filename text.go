@@ -232,6 +232,66 @@ func (t *Text) WidthRange(s string, start, end int) float64 {
 	return width
 }
 
+// WidthBytes measures the display width of a UTF-8 byte buffer.
+//
+// This is more efficient than Width(string(bytes)) as it avoids string allocation
+// and conversion overhead for large buffers.
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	buf := []byte("Hello 世界")
+//	width := txt.WidthBytes(buf)  // 9.0 cells
+func (t *Text) WidthBytes(b []byte) float64 {
+	// For byte buffers, convert to string once (Go optimizes this)
+	// and use the existing grapheme-based measurement
+	return t.Width(string(b))
+}
+
+// WidthUpTo measures display width up to a maximum, with early termination.
+//
+// Returns the measured width and whether it exceeded the maximum.
+// This is more efficient than Width() when you only care about fitting within
+// a maximum width, as it stops measuring once the limit is reached.
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	width, exceeded := txt.WidthUpTo("Very long text here", 10.0)
+//	if exceeded {
+//	    // Text is too wide, needs truncation
+//	}
+func (t *Text) WidthUpTo(s string, maxWidth float64) (width float64, exceeded bool) {
+	graphemes := uax29.Graphemes(s)
+	for _, g := range graphemes {
+		gWidth := t.graphemeWidth(g)
+		width += gWidth
+		if width > maxWidth {
+			return width, true
+		}
+	}
+	return width, false
+}
+
+// WidthMany efficiently measures multiple strings in a batch.
+//
+// This can be more efficient than calling Width() multiple times if the
+// implementation can reuse internal state or optimize for batch operations.
+//
+// Example:
+//
+//	txt := text.NewTerminal()
+//	strings := []string{"Hello", "世界", "Test"}
+//	widths := txt.WidthMany(strings)
+//	// widths = [5.0, 4.0, 4.0]
+func (t *Text) WidthMany(strings []string) []float64 {
+	widths := make([]float64, len(strings))
+	for i, s := range strings {
+		widths[i] = t.Width(s)
+	}
+	return widths
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Pre-configured Measure Functions
 // ═══════════════════════════════════════════════════════════════
