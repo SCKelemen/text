@@ -189,6 +189,33 @@ func (t *Text) Width(s string) float64 {
 	return width
 }
 
+// WidthBytes measures the display width of UTF-8 bytes.
+func (t *Text) WidthBytes(b []byte) float64 {
+	return t.Width(string(b))
+}
+
+// WidthUpTo measures text width and reports if the max width was exceeded.
+// If exceeded is true, the returned width includes the grapheme that exceeded maxWidth.
+func (t *Text) WidthUpTo(s string, maxWidth float64) (width float64, exceeded bool) {
+	width = 0.0
+	for _, g := range uax29.Graphemes(s) {
+		width += t.Width(g)
+		if width > maxWidth {
+			return width, true
+		}
+	}
+	return width, false
+}
+
+// WidthMany measures multiple strings and returns per-string widths.
+func (t *Text) WidthMany(strings []string) []float64 {
+	out := make([]float64, len(strings))
+	for i, s := range strings {
+		out[i] = t.Width(s)
+	}
+	return out
+}
+
 func emojiClusterWidth(runes []rune) (int, bool) {
 	if len(runes) == 0 {
 		return 0, false

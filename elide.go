@@ -22,9 +22,6 @@ import "strings"
 //	short := txt.Elide("/very/long/path/to/some/file.txt", 20)
 //	// Returns: "/very/.../file.txt"
 func (t *Text) Elide(text string, maxWidth float64) string {
-	if strings.ContainsRune(text, '/') || strings.ContainsRune(text, '\\') {
-		return t.ElidePath(text, maxWidth)
-	}
 	return t.Truncate(text, TruncateOptions{
 		MaxWidth: maxWidth,
 		Strategy: TruncateMiddle,
@@ -59,21 +56,6 @@ func (t *Text) ElideEnd(text string, maxWidth float64) string {
 //	short := txt.ElideStart("/path/to/myfile.txt", 15)
 //	// Returns: "...myfile.txt"
 func (t *Text) ElideStart(text string, maxWidth float64) string {
-	if strings.ContainsRune(text, '/') || strings.ContainsRune(text, '\\') {
-		sep := '/'
-		if strings.ContainsRune(text, '\\') {
-			sep = '\\'
-		}
-		last := strings.LastIndex(text, string(sep))
-		if last >= 0 && last < len(text)-1 {
-			filename := text[last+1:]
-			candidate := "..." + filename
-			if t.Width(candidate) <= maxWidth {
-				return candidate
-			}
-		}
-	}
-
 	return t.Truncate(text, TruncateOptions{
 		MaxWidth: maxWidth,
 		Strategy: TruncateStart,
@@ -176,19 +158,8 @@ func (t *Text) ElideURL(url string, maxWidth float64) string {
 //	short := txt.ElideWith("Long text", 10, "…")     // Single character ellipsis
 //	short = txt.ElideWith("Long text", 10, " [...] ") // Bracketed ellipsis
 func (t *Text) ElideWith(text string, maxWidth float64, ellipsis string) string {
-	// Keep truncation aggressiveness comparable to "..." even with longer custom ellipsis.
-	defaultEllipsisWidth := t.Width("...")
-	customWidth := t.Width(ellipsis)
-	adjustedMaxWidth := maxWidth
-	if customWidth > defaultEllipsisWidth {
-		adjustedMaxWidth = maxWidth - (customWidth - defaultEllipsisWidth)
-	}
-	if adjustedMaxWidth < defaultEllipsisWidth {
-		adjustedMaxWidth = defaultEllipsisWidth
-	}
-
 	return t.Truncate(text, TruncateOptions{
-		MaxWidth: adjustedMaxWidth,
+		MaxWidth: maxWidth,
 		Strategy: TruncateMiddle,
 		Ellipsis: ellipsis,
 	})
