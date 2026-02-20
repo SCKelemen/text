@@ -175,10 +175,92 @@ func NewTerminalEastAsian() *Text {
 //	width = txt.Width("👋🏻")        // 2.0 cells (emoji + skin tone modifier)
 func (t *Text) Width(s string) float64 {
 	width := 0.0
-	for _, r := range s {
-		width += t.config.MeasureFunc(r)
+	for _, g := range uax29.Graphemes(s) {
+		runes := []rune(g)
+		if emojiWidth, ok := emojiClusterWidth(runes); ok {
+			width += float64(emojiWidth)
+			continue
+		}
+
+		for _, r := range runes {
+			width += t.config.MeasureFunc(r)
+		}
 	}
 	return width
+}
+
+func emojiClusterWidth(runes []rune) (int, bool) {
+	if len(runes) == 0 {
+		return 0, false
+	}
+
+	const (
+		variationSelector15      = rune(0xFE0E)
+		variationSelector16      = rune(0xFE0F)
+		combiningEnclosingKeycap = rune(0x20E3)
+	)
+
+	isRegional := func(r rune) bool {
+		return r >= 0x1F1E6 && r <= 0x1F1FF
+	}
+
+	emojiCount := 0
+	regionalCount := 0
+	hasVS15 := false
+	hasVS16 := false
+	hasKeycap := false
+	maxSingleWidth := 0
+
+	for _, r := range runes {
+		if isRegional(r) {
+			regionalCount++
+		}
+		if r == variationSelector15 {
+			hasVS15 = true
+		}
+		if r == variationSelector16 {
+			hasVS16 = true
+		}
+		if r == combiningEnclosingKeycap {
+			hasKeycap = true
+		}
+		if uts51.IsEmoji(r) || uts51.IsEmojiComponent(r) {
+			emojiCount++
+			if w := uts51.EmojiWidth(r); w > maxSingleWidth {
+				maxSingleWidth = w
+			}
+		}
+	}
+
+	if emojiCount == 0 {
+		return 0, false
+	}
+
+	// Flag sequences (regional indicator pairs) are 2 cells.
+	if regionalCount >= 2 {
+		return 2, true
+	}
+
+	// Keycap sequences render as emoji.
+	if hasKeycap {
+		return 2, true
+	}
+
+	// Explicit text presentation selector.
+	if hasVS15 {
+		return 1, true
+	}
+
+	// Multi-rune emoji clusters (ZWJ, modifiers, VS16) are rendered as emoji.
+	if len(runes) > 1 || hasVS16 {
+		return 2, true
+	}
+
+	if maxSingleWidth > 0 {
+		return maxSingleWidth, true
+	}
+
+	return 0, false
 }
 
 // WidthRange measures the display width of a substring by rune indices.

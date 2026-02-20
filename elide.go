@@ -1,5 +1,7 @@
 package text
 
+import "strings"
+
 // Elision Convenience Functions
 //
 // Provides intuitive APIs for common text elision patterns.
@@ -20,6 +22,9 @@ package text
 //	short := txt.Elide("/very/long/path/to/some/file.txt", 20)
 //	// Returns: "/very/.../file.txt"
 func (t *Text) Elide(text string, maxWidth float64) string {
+	if strings.ContainsRune(text, '/') || strings.ContainsRune(text, '\\') {
+		return t.ElidePath(text, maxWidth)
+	}
 	return t.Truncate(text, TruncateOptions{
 		MaxWidth: maxWidth,
 		Strategy: TruncateMiddle,
@@ -54,6 +59,21 @@ func (t *Text) ElideEnd(text string, maxWidth float64) string {
 //	short := txt.ElideStart("/path/to/myfile.txt", 15)
 //	// Returns: "...myfile.txt"
 func (t *Text) ElideStart(text string, maxWidth float64) string {
+	if strings.ContainsRune(text, '/') || strings.ContainsRune(text, '\\') {
+		sep := '/'
+		if strings.ContainsRune(text, '\\') {
+			sep = '\\'
+		}
+		last := strings.LastIndex(text, string(sep))
+		if last >= 0 && last < len(text)-1 {
+			filename := text[last+1:]
+			candidate := "..." + filename
+			if t.Width(candidate) <= maxWidth {
+				return candidate
+			}
+		}
+	}
+
 	return t.Truncate(text, TruncateOptions{
 		MaxWidth: maxWidth,
 		Strategy: TruncateStart,
@@ -76,9 +96,55 @@ func (t *Text) ElideStart(text string, maxWidth float64) string {
 //	short := txt.ElidePath("/usr/local/share/applications/myapp.desktop", 30)
 //	// Returns: "/usr/.../applications/myapp.desktop"
 func (t *Text) ElidePath(path string, maxWidth float64) string {
-	// For now, just use middle elision
-	// TODO: Implement smarter path-aware elision
-	return t.Elide(path, maxWidth)
+	if t.Width(path) <= maxWidth {
+		return path
+	}
+
+	sep := "/"
+	if strings.Contains(path, "\\") {
+		sep = "\\"
+	}
+
+	parts := strings.Split(path, sep)
+	if len(parts) < 2 {
+		return t.Truncate(path, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateMiddle,
+			Ellipsis: "...",
+		})
+	}
+
+	filename := parts[len(parts)-1]
+	leadSlash := strings.HasPrefix(path, sep)
+	firstDir := ""
+	for _, p := range parts {
+		if p != "" {
+			firstDir = p
+			break
+		}
+	}
+	if firstDir == "" || filename == "" {
+		return t.Truncate(path, TruncateOptions{
+			MaxWidth: maxWidth,
+			Strategy: TruncateMiddle,
+			Ellipsis: "...",
+		})
+	}
+
+	prefix := firstDir + sep
+	if leadSlash {
+		prefix = sep + prefix
+	}
+	candidate := prefix + "..." + sep + filename
+	if t.Width(candidate) <= maxWidth {
+		return candidate
+	}
+
+	return t.Truncate(path, TruncateOptions{
+		MaxWidth: maxWidth,
+		Strategy: TruncateMiddle,
+		Ellipsis: "...",
+	})
 }
 
 // ElideURL intelligently shortens URLs.
@@ -110,8 +176,19 @@ func (t *Text) ElideURL(url string, maxWidth float64) string {
 //	short := txt.ElideWith("Long text", 10, "…")     // Single character ellipsis
 //	short = txt.ElideWith("Long text", 10, " [...] ") // Bracketed ellipsis
 func (t *Text) ElideWith(text string, maxWidth float64, ellipsis string) string {
+	// Keep truncation aggressiveness comparable to "..." even with longer custom ellipsis.
+	defaultEllipsisWidth := t.Width("...")
+	customWidth := t.Width(ellipsis)
+	adjustedMaxWidth := maxWidth
+	if customWidth > defaultEllipsisWidth {
+		adjustedMaxWidth = maxWidth - (customWidth - defaultEllipsisWidth)
+	}
+	if adjustedMaxWidth < defaultEllipsisWidth {
+		adjustedMaxWidth = defaultEllipsisWidth
+	}
+
 	return t.Truncate(text, TruncateOptions{
-		MaxWidth: maxWidth,
+		MaxWidth: adjustedMaxWidth,
 		Strategy: TruncateMiddle,
 		Ellipsis: ellipsis,
 	})
