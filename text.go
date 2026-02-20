@@ -164,7 +164,6 @@ func NewTerminalEastAsian() *Text {
 // This correctly handles:
 //   - CJK characters (2 cells/units wide)
 //   - Emoji (2 cells/units wide)
-//   - Emoji sequences (flags, ZWJ sequences, modifiers - all 2 cells wide)
 //   - Combining marks (0 width)
 //   - Zero-width joiners (0 width)
 //
@@ -174,39 +173,94 @@ func NewTerminalEastAsian() *Text {
 //	width := txt.Width("Hello")     // 5.0 cells
 //	width = txt.Width("Hello 世界")  // 9.0 cells (5 + 1 space + 2 + 2)
 //	width = txt.Width("👋🏻")        // 2.0 cells (emoji + skin tone modifier)
-//	width = txt.Width("🇺🇸")        // 2.0 cells (flag emoji)
 func (t *Text) Width(s string) float64 {
-	// Use grapheme clusters for correct emoji sequence handling
-	graphemes := uax29.Graphemes(s)
 	width := 0.0
-	for _, g := range graphemes {
-		width += t.graphemeWidth(g)
+	for _, g := range uax29.Graphemes(s) {
+		runes := []rune(g)
+		if emojiWidth, ok := emojiClusterWidth(runes); ok {
+			width += float64(emojiWidth)
+			continue
+		}
+
+		for _, r := range runes {
+			width += t.config.MeasureFunc(r)
+		}
 	}
 	return width
 }
 
-// graphemeWidth measures the width of a single grapheme cluster.
-func (t *Text) graphemeWidth(g string) float64 {
-	runes := []rune(g)
+func emojiClusterWidth(runes []rune) (int, bool) {
+	if len(runes) == 0 {
+		return 0, false
+	}
 
-	// For grapheme clusters with multiple runes, check if it's an emoji sequence
-	if len(runes) > 1 {
-		// Use the unicode library's EmojiSequenceWidth for proper handling
-		if width := uts51.EmojiSequenceWidth(runes); width >= 0 {
-			return float64(width)
+	const (
+		variationSelector15      = rune(0xFE0E)
+		variationSelector16      = rune(0xFE0F)
+		combiningEnclosingKeycap = rune(0x20E3)
+	)
+
+	isRegional := func(r rune) bool {
+		return r >= 0x1F1E6 && r <= 0x1F1FF
+	}
+
+	emojiCount := 0
+	regionalCount := 0
+	hasVS15 := false
+	hasVS16 := false
+	hasKeycap := false
+	maxSingleWidth := 0
+
+	for _, r := range runes {
+		if isRegional(r) {
+			regionalCount++
 		}
-
-		// For non-emoji multi-rune graphemes (combining marks),
-		// only measure the base character (first rune)
-		return t.config.MeasureFunc(runes[0])
+		if r == variationSelector15 {
+			hasVS15 = true
+		}
+		if r == variationSelector16 {
+			hasVS16 = true
+		}
+		if r == combiningEnclosingKeycap {
+			hasKeycap = true
+		}
+		if uts51.IsEmoji(r) || uts51.IsEmojiComponent(r) {
+			emojiCount++
+			if w := uts51.EmojiWidth(r); w > maxSingleWidth {
+				maxSingleWidth = w
+			}
+		}
 	}
 
-	// Single rune grapheme - use normal measurement
-	if len(runes) == 1 {
-		return t.config.MeasureFunc(runes[0])
+	if emojiCount == 0 {
+		return 0, false
 	}
 
-	return 0.0
+	// Flag sequences (regional indicator pairs) are 2 cells.
+	if regionalCount >= 2 {
+		return 2, true
+	}
+
+	// Keycap sequences render as emoji.
+	if hasKeycap {
+		return 2, true
+	}
+
+	// Explicit text presentation selector.
+	if hasVS15 {
+		return 1, true
+	}
+
+	// Multi-rune emoji clusters (ZWJ, modifiers, VS16) are rendered as emoji.
+	if len(runes) > 1 || hasVS16 {
+		return 2, true
+	}
+
+	if maxSingleWidth > 0 {
+		return maxSingleWidth, true
+	}
+
+	return 0, false
 }
 
 // WidthRange measures the display width of a substring by rune indices.
@@ -230,66 +284,6 @@ func (t *Text) WidthRange(s string, start, end int) float64 {
 		}
 	}
 	return width
-}
-
-// WidthBytes measures the display width of a UTF-8 byte buffer.
-//
-// This is more efficient than Width(string(bytes)) as it avoids string allocation
-// and conversion overhead for large buffers.
-//
-// Example:
-//
-//	txt := text.NewTerminal()
-//	buf := []byte("Hello 世界")
-//	width := txt.WidthBytes(buf)  // 9.0 cells
-func (t *Text) WidthBytes(b []byte) float64 {
-	// For byte buffers, convert to string once (Go optimizes this)
-	// and use the existing grapheme-based measurement
-	return t.Width(string(b))
-}
-
-// WidthUpTo measures display width up to a maximum, with early termination.
-//
-// Returns the measured width and whether it exceeded the maximum.
-// This is more efficient than Width() when you only care about fitting within
-// a maximum width, as it stops measuring once the limit is reached.
-//
-// Example:
-//
-//	txt := text.NewTerminal()
-//	width, exceeded := txt.WidthUpTo("Very long text here", 10.0)
-//	if exceeded {
-//	    // Text is too wide, needs truncation
-//	}
-func (t *Text) WidthUpTo(s string, maxWidth float64) (width float64, exceeded bool) {
-	graphemes := uax29.Graphemes(s)
-	for _, g := range graphemes {
-		gWidth := t.graphemeWidth(g)
-		width += gWidth
-		if width > maxWidth {
-			return width, true
-		}
-	}
-	return width, false
-}
-
-// WidthMany efficiently measures multiple strings in a batch.
-//
-// This can be more efficient than calling Width() multiple times if the
-// implementation can reuse internal state or optimize for batch operations.
-//
-// Example:
-//
-//	txt := text.NewTerminal()
-//	strings := []string{"Hello", "世界", "Test"}
-//	widths := txt.WidthMany(strings)
-//	// widths = [5.0, 4.0, 4.0]
-func (t *Text) WidthMany(strings []string) []float64 {
-	widths := make([]float64, len(strings))
-	for i, s := range strings {
-		widths[i] = t.Width(s)
-	}
-	return widths
 }
 
 // ═══════════════════════════════════════════════════════════════
