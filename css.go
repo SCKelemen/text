@@ -260,10 +260,10 @@ type CSSTextStyle struct {
 
 	// Text overflow (CSS Overflow Module)
 	// https://drafts.csswg.org/css-overflow/#text-overflow
-	TextOverflow      TextOverflow // How to handle overflow (applies to both ends if TextOverflowEnd not set)
-	TextOverflowEnd   TextOverflow // How to handle overflow at end (if different from start)
-	TextOverflowClipString string  // Custom string for clip mode
-	TextOverflowEllipsisString string // Custom ellipsis string (default: "...")
+	TextOverflow               TextOverflow // How to handle overflow (applies to both ends if TextOverflowEnd not set)
+	TextOverflowEnd            TextOverflow // How to handle overflow at end (if different from start)
+	TextOverflowClipString     string       // Custom string for clip mode
+	TextOverflowEllipsisString string       // Custom ellipsis string (default: "...")
 
 	// Spacing (using CSS length units)
 	LetterSpacing units.Length // Additional spacing between characters
@@ -286,23 +286,23 @@ type CSSTextStyle struct {
 // DefaultCSSTextStyle returns a CSSTextStyle with default values matching CSS defaults.
 func DefaultCSSTextStyle() CSSTextStyle {
 	return CSSTextStyle{
-		WhiteSpace:             WhiteSpaceNormal,
-		TextTransform:          TextTransformNone,
-		WordBreak:              WordBreakNormal,
-		LineBreak:              LineBreakAuto,
-		OverflowWrap:           OverflowWrapNormal,
-		Hyphens:                HyphensManual,
-		TextOverflow:           TextOverflowClip,
+		WhiteSpace:                 WhiteSpaceNormal,
+		TextTransform:              TextTransformNone,
+		WordBreak:                  WordBreakNormal,
+		LineBreak:                  LineBreakAuto,
+		OverflowWrap:               OverflowWrapNormal,
+		Hyphens:                    HyphensManual,
+		TextOverflow:               TextOverflowClip,
 		TextOverflowEllipsisString: "...",
-		LetterSpacing:          units.Px(0),
-		WordSpacing:            units.Px(0),
-		TextIndent:             DefaultTextIndent(),
-		TextAlign:              AlignLeft,
-		TextAlignLast:          AlignLeft,
-		VerticalAlign:          AlignLeft,
-		Direction:              DirectionLTR,
-		HangingPunctuation:     HangingPunctuationNone,
-		TextSpacingTrim:        TextSpacingTrimNone,
+		LetterSpacing:              units.Px(0),
+		WordSpacing:                units.Px(0),
+		TextIndent:                 DefaultTextIndent(),
+		TextAlign:                  AlignLeft,
+		TextAlignLast:              AlignLeft,
+		VerticalAlign:              AlignLeft,
+		Direction:                  DirectionLTR,
+		HangingPunctuation:         HangingPunctuationNone,
+		TextSpacingTrim:            TextSpacingTrimNone,
 	}
 }
 
@@ -605,13 +605,16 @@ func (t *Text) buildLinesFromBreakPoints(text string, breakPoints []int, opts CS
 
 		// Check if adding this segment would exceed maxWidth
 		if effectiveWidth > maxWidth && currentLine != "" {
+			currentRuneLen := len([]rune(currentLine))
+
 			// Line is full, commit current line
 			lines = append(lines, Line{
 				Content: currentLine,
 				Width:   currentWidth,
 				Start:   lineStartIdx,
-				End:     lineStartIdx + len([]rune(currentLine)),
+				End:     lineStartIdx + currentRuneLen,
 			})
+			lineStartIdx += currentRuneLen
 
 			// Start new line with this segment
 			currentLine = segment
@@ -626,8 +629,6 @@ func (t *Text) buildLinesFromBreakPoints(text string, breakPoints []int, opts CS
 				spaceCount := strings.Count(currentLine, " ")
 				currentWidth += float64(spaceCount) * opts.Style.WordSpacing.Raw()
 			}
-
-			lineStartIdx += len([]rune(currentLine))
 		} else {
 			// Add segment to current line
 			currentLine = testLine
@@ -807,15 +808,13 @@ func (t *Text) AlignLines(lines []Line, width float64, style CSSTextStyle) []Lin
 
 		// Determine which alignment to use
 		align := style.TextAlign
-		if isLastLine && style.TextAlignLast != AlignLeft {
-			// Use text-align-last for the last line
-			// If text-align-last is not set (AlignLeft is default), use text-align
-			align = style.TextAlignLast
-
-			// Special handling: if text-align is justify but last line uses default,
-			// the last line should use start alignment (left in LTR)
+		if isLastLine {
+			// CSS-like behavior: when text-align is justify and text-align-last is
+			// left/default, last line should not be justified.
 			if style.TextAlign == AlignJustify && style.TextAlignLast == AlignLeft {
 				align = AlignLeft
+			} else if style.TextAlignLast != AlignLeft {
+				align = style.TextAlignLast
 			}
 		}
 

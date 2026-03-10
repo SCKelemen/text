@@ -336,6 +336,33 @@ func TestWrapCSS(t *testing.T) {
 			t.Errorf("Expected uppercase text, got %q", lines[0].Content)
 		}
 	})
+
+	t.Run("Line start indices stay monotonic", func(t *testing.T) {
+		text := "hello world this"
+		opts := CSSWrapOptions{
+			MaxWidth: units.Ch(6),
+			Style:    DefaultCSSTextStyle(),
+		}
+
+		lines := txt.WrapCSS(text, opts)
+		if len(lines) != 3 {
+			t.Fatalf("Expected 3 lines, got %d", len(lines))
+		}
+
+		expected := []Line{
+			{Content: "hello ", Start: 0, End: 6},
+			{Content: "world ", Start: 6, End: 12},
+			{Content: "this", Start: 12, End: 16},
+		}
+		for i := range expected {
+			if lines[i].Content != expected[i].Content {
+				t.Fatalf("Line %d content = %q, want %q", i, lines[i].Content, expected[i].Content)
+			}
+			if lines[i].Start != expected[i].Start || lines[i].End != expected[i].End {
+				t.Fatalf("Line %d indices = [%d,%d), want [%d,%d)", i, lines[i].Start, lines[i].End, expected[i].Start, expected[i].End)
+			}
+		}
+	})
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -357,17 +384,17 @@ func TestToFullSizeKana(t *testing.T) {
 		},
 		{
 			name:  "Small katakana",
-			input:  "ァィゥェォ",
+			input: "ァィゥェォ",
 			want:  "アイウエオ",
 		},
 		{
 			name:  "Small tsu",
-			input:  "っッ",
+			input: "っッ",
 			want:  "つツ",
 		},
 		{
 			name:  "Mixed with normal",
-			input:  "あぁアァ",
+			input: "あぁアァ",
 			want:  "ああアア",
 		},
 	}
@@ -638,7 +665,7 @@ func TestAlignLines_JustifyDefault(t *testing.T) {
 	lines := []Line{
 		{Content: "Justified line one", Width: 18},
 		{Content: "Justified line two", Width: 18},
-		{Content: "Last", Width: 4},
+		{Content: "Last two", Width: 8},
 	}
 
 	// When text-align is justify and text-align-last is default (left),
@@ -652,10 +679,9 @@ func TestAlignLines_JustifyDefault(t *testing.T) {
 
 	// Last line should be left-aligned
 	lastLine := aligned[len(aligned)-1]
-	// It should have padding on the right (left-aligned)
-	if !strings.HasSuffix(lastLine.Content, " ") && txt.Width(lastLine.Content) < 25.0 {
-		// The content itself is short, and should have right padding
-		t.Logf("Last line content: %q", lastLine.Content)
+	wantLast := txt.AlignWithDirection(lines[len(lines)-1].Content, 25.0, AlignLeft, style.Direction, style.TextAlign)
+	if lastLine.Content != wantLast {
+		t.Errorf("Last line content = %q, want %q", lastLine.Content, wantLast)
 	}
 }
 

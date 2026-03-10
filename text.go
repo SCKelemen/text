@@ -299,18 +299,22 @@ func emojiClusterWidth(runes []rune) (int, bool) {
 //	width := txt.WidthRange(text, 0, 5)  // 5.0 (just "Hello")
 //	width = txt.WidthRange(text, 6, 8)   // 4.0 (just "世界")
 func (t *Text) WidthRange(s string, start, end int) float64 {
-	width := 0.0
-	i := 0
-	for _, r := range s {
-		if i >= start && i < end {
-			width += t.config.MeasureFunc(r)
-		}
-		i++
-		if i >= end {
-			break
-		}
+	if start >= end {
+		return 0
 	}
-	return width
+
+	runes := []rune(s)
+	if start < 0 {
+		start = 0
+	}
+	if end > len(runes) {
+		end = len(runes)
+	}
+	if start >= end {
+		return 0
+	}
+
+	return t.Width(string(runes[start:end]))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -411,44 +415,152 @@ func (t *Text) Wrap(text string, opts WrapOptions) []Line {
 		return []Line{{Content: text, Width: t.Width(text), Start: 0, End: len([]rune(text))}}
 	}
 
-	// Use UAX #29 to get grapheme clusters (don't break emoji!)
-	graphemes := uax29.Graphemes(text)
+	if !opts.PreserveNewlines {
+		return t.wrapSegment(text, opts, 0)
+	}
 
-	var lines []Line
-	currentLine := ""
-	currentWidth := 0.0
-	lineStart := 0
+	parts := strings.Split(text, "\n")
+	lines := make([]Line, 0, len(parts))
+	runeOffset := 0
+	hasNewline := len(parts) > 1
 
-	for i, g := range graphemes {
-		gWidth := t.Width(g)
-
-		// Check if we need to break
-		if currentWidth+gWidth > opts.MaxWidth && currentWidth > 0 {
-			// Add current line
+	for i, part := range parts {
+		partLines := t.wrapSegment(part, opts, runeOffset)
+		if len(partLines) == 0 && hasNewline {
 			lines = append(lines, Line{
-				Content: currentLine,
-				Width:   currentWidth,
-				Start:   lineStart,
-				End:     lineStart + len([]rune(currentLine)),
+				Content: "",
+				Width:   0,
+				Start:   runeOffset,
+				End:     runeOffset,
 			})
-
-			// Start new line
-			currentLine = g
-			currentWidth = gWidth
-			lineStart = i
 		} else {
-			currentLine += g
-			currentWidth += gWidth
+			lines = append(lines, partLines...)
+		}
+
+		runeOffset += len([]rune(part))
+		if i < len(parts)-1 {
+			runeOffset++ // Account for the newline rune that was removed by Split.
 		}
 	}
 
-	// Add final line
+	return lines
+}
+
+func (t *Text) wrapSegment(text string, opts WrapOptions, baseRuneOffset int) []Line {
+	if text == "" {
+		return nil
+	}
+
+	if opts.BreakWords {
+		return t.wrapByGrapheme(text, opts.MaxWidth, baseRuneOffset)
+	}
+	return t.wrapByBreakOpportunities(text, opts.MaxWidth, baseRuneOffset)
+}
+
+func (t *Text) wrapByGrapheme(text string, maxWidth float64, baseRuneOffset int) []Line {
+	graphemes := uax29.Graphemes(text)
+	lines := make([]Line, 0)
+
+	currentLine := ""
+	currentWidth := 0.0
+	currentStart := 0
+	currentRuneLen := 0
+
+	for _, g := range graphemes {
+		gWidth := t.Width(g)
+		gRuneLen := len([]rune(g))
+
+		if currentWidth+gWidth > maxWidth && currentWidth > 0 {
+			lines = append(lines, Line{
+				Content: currentLine,
+				Width:   currentWidth,
+				Start:   baseRuneOffset + currentStart,
+				End:     baseRuneOffset + currentStart + currentRuneLen,
+			})
+			currentStart += currentRuneLen
+			currentLine = g
+			currentWidth = gWidth
+			currentRuneLen = gRuneLen
+			continue
+		}
+
+		currentLine += g
+		currentWidth += gWidth
+		currentRuneLen += gRuneLen
+	}
+
 	if currentLine != "" {
 		lines = append(lines, Line{
 			Content: currentLine,
 			Width:   currentWidth,
-			Start:   lineStart,
-			End:     lineStart + len([]rune(currentLine)),
+			Start:   baseRuneOffset + currentStart,
+			End:     baseRuneOffset + currentStart + currentRuneLen,
+		})
+	}
+
+	return lines
+}
+
+func (t *Text) wrapByBreakOpportunities(text string, maxWidth float64, baseRuneOffset int) []Line {
+	breakPoints := uax14.FindLineBreakOpportunities(text, t.config.HyphenationMode)
+	if len(breakPoints) < 2 {
+		return []Line{{
+			Content: text,
+			Width:   t.Width(text),
+			Start:   baseRuneOffset,
+			End:     baseRuneOffset + len([]rune(text)),
+		}}
+	}
+
+	lines := make([]Line, 0)
+
+	currentLine := ""
+	currentWidth := 0.0
+	currentStart := 0
+	currentRuneLen := 0
+
+	for i := 1; i < len(breakPoints); i++ {
+		segment := text[breakPoints[i-1]:breakPoints[i]]
+		if segment == "" {
+			continue
+		}
+
+		segmentWidth := t.Width(segment)
+		segmentRuneLen := len([]rune(segment))
+
+		if currentLine == "" {
+			currentLine = segment
+			currentWidth = segmentWidth
+			currentRuneLen = segmentRuneLen
+			continue
+		}
+
+		if currentWidth+segmentWidth <= maxWidth {
+			currentLine += segment
+			currentWidth += segmentWidth
+			currentRuneLen += segmentRuneLen
+			continue
+		}
+
+		lines = append(lines, Line{
+			Content: currentLine,
+			Width:   currentWidth,
+			Start:   baseRuneOffset + currentStart,
+			End:     baseRuneOffset + currentStart + currentRuneLen,
+		})
+		currentStart += currentRuneLen
+
+		currentLine = segment
+		currentWidth = segmentWidth
+		currentRuneLen = segmentRuneLen
+	}
+
+	if currentLine != "" {
+		lines = append(lines, Line{
+			Content: currentLine,
+			Width:   currentWidth,
+			Start:   baseRuneOffset + currentStart,
+			End:     baseRuneOffset + currentStart + currentRuneLen,
 		})
 	}
 

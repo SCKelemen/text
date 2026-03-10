@@ -168,11 +168,11 @@ func TestMeasureMultiLine(t *testing.T) {
 			wantLineCount: 2,
 		},
 		{
-			name:          "Three lines with line height",
+			name:          "Four lines with line height",
 			text:          "Hello world test example",
 			maxWidth:      10.0,
 			lineHeight:    1.5,
-			wantLineCount: 3,
+			wantLineCount: 4,
 		},
 	}
 

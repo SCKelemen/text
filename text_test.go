@@ -11,7 +11,7 @@ func TestWidth(t *testing.T) {
 		expected float64
 	}{
 		{"ASCII", "Hello", 5.0},
-		{"CJK wide", "世界", 4.0}, // 2 + 2
+		{"CJK wide", "世界", 4.0},   // 2 + 2
 		{"Mixed", "Hello世界", 9.0}, // 5 + 4
 		{"Emoji", "😀", 2.0},
 		{"Emoji with modifier", "👋🏻", 2.0}, // emoji + skin tone = still 2
@@ -185,19 +185,91 @@ func TestWrap(t *testing.T) {
 	}
 }
 
+func TestWrap_BreakWordsOption(t *testing.T) {
+	txt := NewTerminal()
+	text := "supercalifragilistic"
+
+	noBreak := txt.Wrap(text, WrapOptions{
+		MaxWidth:   8,
+		BreakWords: false,
+	})
+	if len(noBreak) != 1 {
+		t.Fatalf("BreakWords=false should keep unbreakable word on one line, got %d lines", len(noBreak))
+	}
+	if noBreak[0].Content != text {
+		t.Fatalf("BreakWords=false line content = %q, want %q", noBreak[0].Content, text)
+	}
+	if noBreak[0].Width <= 8 {
+		t.Fatalf("BreakWords=false expected overflow line width > 8, got %.1f", noBreak[0].Width)
+	}
+
+	breakWords := txt.Wrap(text, WrapOptions{
+		MaxWidth:   8,
+		BreakWords: true,
+	})
+	if len(breakWords) <= 1 {
+		t.Fatalf("BreakWords=true should break long word, got %d lines", len(breakWords))
+	}
+	for i, line := range breakWords {
+		if line.Width > 8 {
+			t.Fatalf("BreakWords=true line %d width %.1f exceeds maxWidth 8", i, line.Width)
+		}
+	}
+}
+
+func TestWrap_PreserveNewlines(t *testing.T) {
+	txt := NewTerminal()
+	text := "a\n👨‍👩‍👧‍👦b"
+
+	lines := txt.Wrap(text, WrapOptions{
+		MaxWidth:         20,
+		PreserveNewlines: true,
+	})
+	if len(lines) != 2 {
+		t.Fatalf("Wrap() with PreserveNewlines returned %d lines, want 2", len(lines))
+	}
+
+	if lines[0].Content != "a" || lines[0].Start != 0 || lines[0].End != 1 {
+		t.Fatalf("line 0 = %+v, want content=%q start=0 end=1", lines[0], "a")
+	}
+	if lines[1].Content != "👨‍👩‍👧‍👦b" || lines[1].Start != 2 || lines[1].End != 10 {
+		t.Fatalf("line 1 = %+v, want content=%q start=2 end=10", lines[1], "👨‍👩‍👧‍👦b")
+	}
+}
+
+func TestWrap_RuneIndicesWithGrapheme(t *testing.T) {
+	txt := NewTerminal()
+	text := "👨‍👩‍👧‍👦a"
+
+	lines := txt.Wrap(text, WrapOptions{
+		MaxWidth:   2,
+		BreakWords: true,
+	})
+	if len(lines) != 2 {
+		t.Fatalf("Wrap() returned %d lines, want 2", len(lines))
+	}
+
+	if lines[0].Content != "👨‍👩‍👧‍👦" || lines[0].Start != 0 || lines[0].End != 7 {
+		t.Fatalf("line 0 = %+v, want content=%q start=0 end=7", lines[0], "👨‍👩‍👧‍👦")
+	}
+	if lines[1].Content != "a" || lines[1].Start != 7 || lines[1].End != 8 {
+		t.Fatalf("line 1 = %+v, want content=%q start=7 end=8", lines[1], "a")
+	}
+}
+
 func TestGraphemes(t *testing.T) {
 	txt := NewTerminal()
 
 	tests := []struct {
-		name  string
-		text  string
-		want  int
+		name string
+		text string
+		want int
 	}{
 		{"ASCII", "Hello", 5},
 		{"CJK", "世界", 2},
 		{"Emoji", "😀", 1},
 		{"Emoji with modifier", "👋🏻", 1}, // Should be 1 grapheme cluster
-		{"Complex emoji", "👨‍👩‍👧‍👦", 1},      // Family emoji with ZWJ
+		{"Complex emoji", "👨‍👩‍👧‍👦", 1},  // Family emoji with ZWJ
 	}
 
 	for _, tt := range tests {
@@ -260,6 +332,7 @@ func TestWidthRange(t *testing.T) {
 		{"Middle range", "Hello world", 6, 11, 5.0},
 		{"Empty range", "Hello world", 5, 5, 0.0},
 		{"CJK range", "Hello世界!", 5, 7, 4.0}, // 世界 = 4 cells
+		{"Emoji ZWJ cluster", "👨‍👩‍👧‍👦", 0, 7, 2.0},
 	}
 
 	for _, tt := range tests {
