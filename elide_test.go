@@ -113,6 +113,35 @@ func TestElideStart(t *testing.T) {
 	}
 }
 
+func TestElideURL(t *testing.T) {
+	txt := NewTerminal()
+
+	t.Run("Preserves host and final path segment", func(t *testing.T) {
+		input := "https://example.com/very/long/path/to/resource"
+		got := txt.ElideURL(input, 35)
+		want := "https://example.com/.../resource"
+
+		if got != want {
+			t.Fatalf("ElideURL() = %q, want %q", got, want)
+		}
+		if txt.Width(got) > 35 {
+			t.Fatalf("ElideURL() width %.1f exceeds maxWidth 35", txt.Width(got))
+		}
+	})
+
+	t.Run("Falls back to generic elision for non-URL text", func(t *testing.T) {
+		input := "not-a-url/with/slashes/and/a/long-tail"
+		got := txt.ElideURL(input, 15)
+
+		if txt.Width(got) > 15 {
+			t.Fatalf("ElideURL() width %.1f exceeds maxWidth 15", txt.Width(got))
+		}
+		if got == input {
+			t.Fatalf("ElideURL() expected truncation, got unchanged %q", got)
+		}
+	})
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Custom Ellipsis Tests
 // ═══════════════════════════════════════════════════════════════

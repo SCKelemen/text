@@ -1,6 +1,9 @@
 package text
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // Elision Convenience Functions
 //
@@ -138,10 +141,54 @@ func (t *Text) ElidePath(path string, maxWidth float64) string {
 //	txt := text.NewTerminal()
 //	short := txt.ElideURL("https://example.com/very/long/path/to/resource", 35)
 //	// Returns: "https://example.com/.../resource"
-func (t *Text) ElideURL(url string, maxWidth float64) string {
-	// For now, just use middle elision
-	// TODO: Implement URL-aware elision that preserves domain
-	return t.Elide(url, maxWidth)
+func (t *Text) ElideURL(rawURL string, maxWidth float64) string {
+	if t.Width(rawURL) <= maxWidth {
+		return rawURL
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" {
+		return t.Elide(rawURL, maxWidth)
+	}
+
+	prefix := parsed.Host
+	if parsed.Scheme != "" {
+		prefix = parsed.Scheme + "://" + parsed.Host
+	}
+
+	tail := ""
+	if parsed.Path != "" && parsed.Path != "/" {
+		trimmed := strings.Trim(parsed.Path, "/")
+		if trimmed != "" {
+			parts := strings.Split(trimmed, "/")
+			tail = "/" + parts[len(parts)-1]
+		}
+	}
+
+	// If path has no useful tail, keep a hint that query/fragment content exists.
+	if tail == "" && parsed.RawQuery != "" {
+		tail = "/?"
+	}
+	if tail == "" && parsed.Fragment != "" {
+		tail = "/#"
+	}
+
+	withTail := prefix + "/..." + tail
+	if t.Width(withTail) <= maxWidth {
+		return withTail
+	}
+
+	withoutTail := prefix + "/..."
+	if t.Width(withoutTail) <= maxWidth {
+		return withoutTail
+	}
+
+	hostOnly := parsed.Host + "/..."
+	if t.Width(hostOnly) <= maxWidth {
+		return hostOnly
+	}
+
+	return t.Elide(rawURL, maxWidth)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -284,10 +331,10 @@ func (t *Text) detectContext(text string) ElideContext {
 	}
 
 	// Check for URL
-	if len(text) > 7 && (text[:7] == "http://" || text[:7] == "https:/") {
+	if strings.HasPrefix(text, "http://") || strings.HasPrefix(text, "https://") {
 		return ElideContextURL
 	}
-	if len(text) > 6 && text[:6] == "ftp://" {
+	if strings.HasPrefix(text, "ftp://") {
 		return ElideContextURL
 	}
 

@@ -365,6 +365,64 @@ func TestWrapCSS(t *testing.T) {
 	})
 }
 
+func TestApplyTextOverflow(t *testing.T) {
+	txt := NewTerminal()
+
+	t.Run("No overflow returns input", func(t *testing.T) {
+		style := DefaultCSSTextStyle()
+		style.TextOverflow = TextOverflowEllipsis
+
+		got := txt.ApplyTextOverflow("short", 20, style)
+		if got != "short" {
+			t.Fatalf("ApplyTextOverflow() = %q, want %q", got, "short")
+		}
+	})
+
+	t.Run("Clip mode clips without indicator", func(t *testing.T) {
+		style := DefaultCSSTextStyle()
+		style.TextOverflow = TextOverflowClip
+
+		got := txt.ApplyTextOverflow("Hello world", 5, style)
+		if got != "Hello" {
+			t.Fatalf("ApplyTextOverflow() = %q, want %q", got, "Hello")
+		}
+	})
+
+	t.Run("Ellipsis mode uses default string", func(t *testing.T) {
+		style := DefaultCSSTextStyle()
+		style.TextOverflow = TextOverflowEllipsis
+		style.TextOverflowEllipsisString = ""
+
+		got := txt.ApplyTextOverflow("Hello world", 8, style)
+		if got != "Hello..." {
+			t.Fatalf("ApplyTextOverflow() = %q, want %q", got, "Hello...")
+		}
+	})
+
+	t.Run("Custom overflow string is applied", func(t *testing.T) {
+		style := DefaultCSSTextStyle()
+		style.TextOverflow = TextOverflowString
+		style.TextOverflowClipString = "[cut]"
+
+		got := txt.ApplyTextOverflow("Hello world", 10, style)
+		if got != "Hello[cut]" {
+			t.Fatalf("ApplyTextOverflow() = %q, want %q", got, "Hello[cut]")
+		}
+	})
+
+	t.Run("TextOverflowEnd overrides TextOverflow", func(t *testing.T) {
+		style := DefaultCSSTextStyle()
+		style.TextOverflow = TextOverflowEllipsis
+		style.TextOverflowEnd = TextOverflowString
+		style.TextOverflowClipString = "~"
+
+		got := txt.ApplyTextOverflow("Hello world", 6, style)
+		if got != "Hello~" {
+			t.Fatalf("ApplyTextOverflow() = %q, want %q", got, "Hello~")
+		}
+	})
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Kana Transformation Tests
 // ═══════════════════════════════════════════════════════════════
