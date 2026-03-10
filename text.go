@@ -176,15 +176,7 @@ func NewTerminalEastAsian() *Text {
 func (t *Text) Width(s string) float64 {
 	width := 0.0
 	for _, g := range uax29.Graphemes(s) {
-		runes := []rune(g)
-		if emojiWidth, ok := emojiClusterWidth(runes); ok {
-			width += float64(emojiWidth)
-			continue
-		}
-
-		for _, r := range runes {
-			width += t.config.MeasureFunc(r)
-		}
+		width += t.graphemeWidth(g)
 	}
 	return width
 }
@@ -199,12 +191,25 @@ func (t *Text) WidthBytes(b []byte) float64 {
 func (t *Text) WidthUpTo(s string, maxWidth float64) (width float64, exceeded bool) {
 	width = 0.0
 	for _, g := range uax29.Graphemes(s) {
-		width += t.Width(g)
+		width += t.graphemeWidth(g)
 		if width > maxWidth {
 			return width, true
 		}
 	}
 	return width, false
+}
+
+func (t *Text) graphemeWidth(g string) float64 {
+	runes := []rune(g)
+	if emojiWidth, ok := emojiClusterWidth(runes); ok {
+		return float64(emojiWidth)
+	}
+
+	width := 0.0
+	for _, r := range runes {
+		width += t.config.MeasureFunc(r)
+	}
+	return width
 }
 
 // WidthMany measures multiple strings and returns per-string widths.

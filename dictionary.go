@@ -55,6 +55,15 @@ type EnglishDictionary struct {
 	customWords   map[string]bool
 }
 
+var englishCompoundWords = map[string]bool{
+	"javascript": true,
+	"typescript": true,
+	"database":   true,
+	"anybody":    true,
+	"someone":    true,
+	"everyone":   true,
+}
+
 // NewEnglishDictionary creates a dictionary with common English abbreviations.
 func NewEnglishDictionary() *EnglishDictionary {
 	return &EnglishDictionary{
@@ -155,17 +164,7 @@ func (d *EnglishDictionary) GetHyphenationPoints(word string) []int {
 
 // IsCompoundWord implements DictionaryProvider.
 func (d *EnglishDictionary) IsCompoundWord(word string) bool {
-	// Common compound words that shouldn't be broken
-	compounds := map[string]bool{
-		"javascript": true,
-		"typescript": true,
-		"database":   true,
-		"anybody":    true,
-		"someone":    true,
-		"everyone":   true,
-	}
-
-	return compounds[strings.ToLower(word)]
+	return englishCompoundWords[strings.ToLower(word)]
 }
 
 // AddAbbreviation adds a custom abbreviation to the dictionary.

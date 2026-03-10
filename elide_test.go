@@ -205,6 +205,21 @@ func TestElideUnicode(t *testing.T) {
 	}
 }
 
+func TestElideStartUnicode(t *testing.T) {
+	txt := NewTerminal()
+
+	got := txt.ElideStartUnicode("Hello world", 8)
+	if len(got) == 0 {
+		t.Fatal("ElideStartUnicode returned empty string")
+	}
+	if got[0:len("…")] != "…" {
+		t.Fatalf("ElideStartUnicode() = %q, expected to start with '…'", got)
+	}
+	if txt.Width(got) > 8 {
+		t.Fatalf("ElideStartUnicode() width %.1f exceeds maxWidth 8", txt.Width(got))
+	}
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Context Detection Tests
 // ═══════════════════════════════════════════════════════════════

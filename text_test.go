@@ -369,6 +369,20 @@ func TestTerminalMeasureEastAsian(t *testing.T) {
 	}
 }
 
+func TestNewTerminalEastAsian(t *testing.T) {
+	txt := NewTerminalEastAsian()
+	if txt == nil {
+		t.Fatal("NewTerminalEastAsian() returned nil")
+	}
+
+	if got := txt.Width("世界"); got != 4.0 {
+		t.Fatalf("Width(\"世界\") = %.1f, want 4.0", got)
+	}
+	if got := txt.Width("A"); got != 1.0 {
+		t.Fatalf("Width(\"A\") = %.1f, want 1.0", got)
+	}
+}
+
 func TestGraphemeCount(t *testing.T) {
 	txt := NewTerminal()
 

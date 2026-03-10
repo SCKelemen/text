@@ -74,6 +74,25 @@ func TestEnglishDictionary_AddAbbreviations(t *testing.T) {
 	}
 }
 
+func TestEnglishDictionary_IsCompoundWord(t *testing.T) {
+	dict := NewEnglishDictionary()
+
+	tests := []struct {
+		word string
+		want bool
+	}{
+		{word: "JavaScript", want: true},
+		{word: "database", want: true},
+		{word: "hello", want: false},
+	}
+
+	for _, tt := range tests {
+		if got := dict.IsCompoundWord(tt.word); got != tt.want {
+			t.Fatalf("IsCompoundWord(%q) = %v, want %v", tt.word, got, tt.want)
+		}
+	}
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Dictionary-Aware Sentence Segmentation Tests
 // ═══════════════════════════════════════════════════════════════
@@ -221,6 +240,36 @@ func TestTextConfig_Sentences(t *testing.T) {
 					len(sentences), tt.wantCount)
 			}
 		})
+	}
+}
+
+func TestSentenceCountWithDictionary(t *testing.T) {
+	txt := NewTerminal()
+	dict := NewEnglishDictionary()
+
+	count := txt.SentenceCountWithDictionary("Dr. Smith is here.", dict)
+	if count != 1 {
+		t.Fatalf("SentenceCountWithDictionary() = %d, want 1", count)
+	}
+}
+
+func TestNewTextWithDictionary(t *testing.T) {
+	dict := NewEnglishDictionary()
+	tc := NewTextWithDictionary(Config{}, dict)
+
+	if tc == nil {
+		t.Fatal("NewTextWithDictionary() returned nil")
+	}
+	if tc.Text == nil {
+		t.Fatal("NewTextWithDictionary().Text returned nil")
+	}
+	if tc.Dictionary != dict {
+		t.Fatal("NewTextWithDictionary() did not preserve dictionary reference")
+	}
+
+	// Ensure dictionary-aware methods are functional.
+	if got := tc.SentenceCount("Mr. Jones is here."); got != 1 {
+		t.Fatalf("TextConfig.SentenceCount() = %d, want 1", got)
 	}
 }
 
