@@ -82,9 +82,9 @@ func defaultEnglishAbbreviations() map[string]bool {
 		"bs":  true,
 		"ma":  true,
 		"mba": true,
-		"jr":   true,
-		"sr":   true,
-		"esq":  true,
+		"jr":  true,
+		"sr":  true,
+		"esq": true,
 
 		// Common abbreviations
 		"etc":  true,
@@ -97,16 +97,16 @@ func defaultEnglishAbbreviations() map[string]bool {
 		"co":   true,
 
 		// Units
-		"ft":  true,
-		"in":  true,
-		"lb":  true,
-		"oz":  true,
-		"km":  true,
-		"cm":  true,
-		"mm":  true,
-		"kg":  true,
-		"mg":  true,
-		"ml":  true,
+		"ft": true,
+		"in": true,
+		"lb": true,
+		"oz": true,
+		"km": true,
+		"cm": true,
+		"mm": true,
+		"kg": true,
+		"mg": true,
+		"ml": true,
 
 		// Time
 		"am": true,
@@ -116,19 +116,19 @@ func defaultEnglishAbbreviations() map[string]bool {
 		"ce": true,
 
 		// Other
-		"no":   true, // Number
-		"vol":  true,
-		"ed":   true,
-		"fig":  true,
-		"ref":  true,
-		"seq":  true,
-		"ave":  true,
-		"blvd": true,
-		"rd":   true,
-		"apt":  true,
-		"dept": true,
-		"min":  true,
-		"max":  true,
+		"no":     true, // Number
+		"vol":    true,
+		"ed":     true,
+		"fig":    true,
+		"ref":    true,
+		"seq":    true,
+		"ave":    true,
+		"blvd":   true,
+		"rd":     true,
+		"apt":    true,
+		"dept":   true,
+		"min":    true,
+		"max":    true,
 		"approx": true,
 	}
 
@@ -294,7 +294,7 @@ func (tc *TextConfig) Sentences(text string) []string {
 	if tc.Dictionary == nil {
 		return tc.Text.Sentences(text)
 	}
-	return tc.Text.SentencesWithDictionary(text, tc.Dictionary)
+	return tc.SentencesWithDictionary(text, tc.Dictionary)
 }
 
 // SentenceCount returns sentence count using the configured dictionary.

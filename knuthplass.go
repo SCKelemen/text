@@ -80,8 +80,8 @@ type breakpoint struct {
 type box struct {
 	content  string
 	width    float64
-	position int    // Starting position in original text
-	isGlue   bool   // True for spaces, false for words
+	position int     // Starting position in original text
+	isGlue   bool    // True for spaces, false for words
 	penalty  float64 // Penalty for breaking after this item
 }
 
@@ -207,7 +207,8 @@ func (t *Text) findOptimalBreakpoints(boxes []box, opts KnuthPlassOptions) []int
 				penalty = opts.HyphenPenalty
 			}
 
-			demerits := math.Pow(opts.LinePenalty+badness+penalty, 2)
+			sum := opts.LinePenalty + badness + penalty
+			demerits := sum * sum
 			totalDemerits := activeNode.demerits + demerits
 
 			// Determine fitness class

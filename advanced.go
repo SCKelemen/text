@@ -306,17 +306,17 @@ const (
 // Common hanging punctuation characters
 var (
 	openingPunctuation = map[rune]bool{
-		'(':      true, '[': true, '{': true,
-		'"':      true, '\'': true, // Straight quotes
+		'(': true, '[': true, '{': true,
+		'"': true, '\'': true, // Straight quotes
 		'\u201C': true, '\u2018': true, // " " ' '
-		'«':      true, '‹': true, '「': true, '『': true,
+		'«': true, '‹': true, '「': true, '『': true,
 	}
 
 	closingPunctuation = map[rune]bool{
-		')':      true, ']': true, '}': true,
-		'"':      true, '\'': true, // Straight quotes
+		')': true, ']': true, '}': true,
+		'"': true, '\'': true, // Straight quotes
 		'\u201D': true, '\u2019': true, // " " ' '
-		'»':      true, '›': true, '」': true, '』': true,
+		'»': true, '›': true, '」': true, '』': true,
 	}
 
 	stopsPunctuation = map[rune]bool{
@@ -736,18 +736,20 @@ func (t *Text) WrapWithControls(text string, maxWidth float64, controls []WrapPo
 
 		// Check wrap-after control for previous position
 		if ctrl, ok := controlMap[breakPos-1]; ok {
-			if ctrl.After == WrapControlAvoid {
+			switch ctrl.After {
+			case WrapControlAvoid:
 				allow = false
-			} else if ctrl.After == WrapControlAlways {
+			case WrapControlAlways:
 				allow = true // Force this break
 			}
 		}
 
 		// Check wrap-before control for current position
 		if ctrl, ok := controlMap[breakPos]; ok {
-			if ctrl.Before == WrapControlAvoid {
+			switch ctrl.Before {
+			case WrapControlAvoid:
 				allow = false
-			} else if ctrl.Before == WrapControlAlways {
+			case WrapControlAlways:
 				allow = true // Force this break
 			}
 		}
@@ -1172,18 +1174,20 @@ func (t *Text) WrapWithPhrasesAndControls(text string, maxWidth float64, breaker
 
 		// Check wrap-after control for previous position
 		if ctrl, ok := controlMap[breakPos-1]; ok {
-			if ctrl.After == WrapControlAvoid {
+			switch ctrl.After {
+			case WrapControlAvoid:
 				allow = false
-			} else if ctrl.After == WrapControlAlways {
+			case WrapControlAlways:
 				allow = true
 			}
 		}
 
 		// Check wrap-before control for current position
 		if ctrl, ok := controlMap[breakPos]; ok {
-			if ctrl.Before == WrapControlAvoid {
+			switch ctrl.Before {
+			case WrapControlAvoid:
 				allow = false
-			} else if ctrl.Before == WrapControlAlways {
+			case WrapControlAlways:
 				allow = true
 			}
 		}
