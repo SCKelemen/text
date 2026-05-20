@@ -3,7 +3,7 @@ package text
 import (
 	"strings"
 
-	"github.com/SCKelemen/unicode/uax29"
+	"github.com/SCKelemen/unicode/v6/uax29"
 )
 
 // Dictionary Support for Text Segmentation

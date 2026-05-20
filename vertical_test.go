@@ -3,7 +3,7 @@ package text
 import (
 	"testing"
 
-	"github.com/SCKelemen/unicode/uax50"
+	"github.com/SCKelemen/unicode/v6/uax50"
 )
 
 func TestDefaultVerticalTextStyle(t *testing.T) {

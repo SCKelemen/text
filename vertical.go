@@ -1,7 +1,7 @@
 package text
 
 import (
-	"github.com/SCKelemen/unicode/uax50"
+	"github.com/SCKelemen/unicode/v6/uax50"
 )
 
 // Vertical Text Layout Support (UAX #50)

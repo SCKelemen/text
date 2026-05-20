@@ -3,7 +3,7 @@ package text
 import (
 	"strings"
 
-	"github.com/SCKelemen/unicode/uax9"
+	"github.com/SCKelemen/unicode/v6/uax9"
 )
 
 // Bidirectional Text Support (UAX #9)

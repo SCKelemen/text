@@ -4,8 +4,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/SCKelemen/unicode/uax14"
-	"github.com/SCKelemen/unicode/uax29"
+	"github.com/SCKelemen/unicode/v6/uax14"
+	"github.com/SCKelemen/unicode/v6/uax29"
 	"github.com/SCKelemen/units"
 )
 

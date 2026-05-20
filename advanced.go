@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SCKelemen/unicode/uax14"
+	"github.com/SCKelemen/unicode/v6/uax14"
 )
 
 // Advanced CSS Text Module Features

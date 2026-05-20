@@ -1,4 +1,4 @@
-github.com/SCKelemen/unicode v1.1.1 h1:zfDNToPzJcuX8ayJhRipZZd09f+dJO/T4IvIk90d13k=
-github.com/SCKelemen/unicode v1.1.1/go.mod h1:TjSqvWpwZC7BTqAgCfnsweOaS1yIxY039Wubh7xC4G0=
-github.com/SCKelemen/units v1.1.0 h1:Udw9ZEbozOzKH1BbaUu+/NmFG08tn5ypECZEkAl0mU8=
-github.com/SCKelemen/units v1.1.0/go.mod h1:kgbJAQ+0m29oq171mOI4STRfOaTYij9rl9J4xOq1H7s=
+github.com/SCKelemen/unicode/v6 v6.2.0 h1:E/i39vZQgN275s0DW8uVKtgBIUjiGvugDfDmw4vLqJM=
+github.com/SCKelemen/unicode/v6 v6.2.0/go.mod h1:o2ycPy2R5EoDxPhZlyYD/34YEH8g700jbNcA6pixUSs=
+github.com/SCKelemen/units v1.2.1 h1:+0oTQfNEzftHLe+6Y1TAJazJuZR/rRS2keAn9UJsmyo=
+github.com/SCKelemen/units v1.2.1/go.mod h1:kgbJAQ+0m29oq171mOI4STRfOaTYij9rl9J4xOq1H7s=
